@@ -1,11 +1,11 @@
 /**
- * Reputation scoring for Celaut Skills elements.
+ * Reputation scoring for Celaut Registry elements.
  *
- * Calculates reputation scores for skills, benchmarks, and coverages
+ * Calculates reputation scores for objectives, benchmarks, and coverages
  * based on activity metrics (coverages, benchmarks, results, scores).
  */
 
-import type { Skill, Benchmark, Coverage, Result } from './types';
+import type { Objective, Benchmark, Coverage, Result } from './types';
 
 /** Reputation score result with breakdown. */
 export interface ReputationScore {
@@ -20,8 +20,8 @@ export interface ReputationScore {
 /**
  * A precomputed relative-labeling scale over a population of sibling scores.
  *
- * Build this ONCE for a set of siblings (e.g. all skills, all benchmarks of a
- * skill) and reuse it for every member — never rebuild it inside a per-element
+ * Build this ONCE for a set of siblings (e.g. all objectives, all benchmarks of a
+ * objective) and reuse it for every member — never rebuild it inside a per-element
  * loop. `labelForScore` then classifies any score against the population.
  */
 export interface ReputationScale {
@@ -98,16 +98,16 @@ function relativeLabel(score: number, siblingScores?: number[]): string {
 }
 
 /**
- * Calculate reputation for a Skill.
+ * Calculate reputation for an Objective.
  *
  * Formula: coverages + benchmarks + totalResults + avgResultScore
- * - coverages: number of services covering this skill
+ * - coverages: number of services covering this objective
  * - benchmarks: number of benchmark definitions
  * - totalResults: total result submissions across all benchmarks
  * - avgResultScore: average score across all results (normalized 0-10)
  */
-export function calculateSkillReputation(skill: Skill, siblings?: Skill[]): ReputationScore {
-  const total = skill.reputation ?? 0;
+export function calculateObjectiveReputation(objective: Objective, siblings?: Objective[]): ReputationScore {
+  const total = objective.reputation ?? 0;
   const rounded = Math.round(total * 100) / 100;
 
   return {
@@ -135,7 +135,7 @@ export function calculateBenchmarkReputation(benchmark: Benchmark, siblings?: Be
 
 /**
  * Calculate reputation for a Coverage based on how many results
- * reference the same service across all skills.
+ * reference the same service across all objectives.
  */
 export function calculateCoverageReputation(
   coverage: Coverage,

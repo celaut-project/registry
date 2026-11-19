@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
    * Small "ℹ" icon button that opens a dropdown explaining a piece of data
-   * in the Skill view. Lightweight popover — uses a native `<dialog>`-style
+   * in the Objective view. Lightweight popover — uses a native `<dialog>`-style
    * overlay so it works on touch without depending on hover.
    *
    * The popover is **portalled to <body>** and pinned with `position: fixed`

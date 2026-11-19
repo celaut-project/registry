@@ -2,7 +2,7 @@
   /**
    * Shows a service's on-chain info — `celaut:service-metadata:v1` (arbitrary
    * descriptive JSON) and `celaut:service-data:v1` (`container` / `api` /
-   * `network`) opinions keyed by this service id. Lets the skills UI surface basic
+   * `network`) opinions keyed by this service id. Lets the objectives UI surface basic
    * service info without downloading the whole service, weighting competing
    * assertions by their reputation.
    *
@@ -48,7 +48,7 @@
       return;
     }
     loading = true;
-    // Publish "loading" to the skill-detail filter registry so the coverage list
+    // Publish "loading" to the objective-detail filter registry so the coverage list
     // keeps this service visible (with its indicator) until the info arrives.
     registerServiceInfo(serviceId, { data: [], metadata: [], loading: true });
     try {

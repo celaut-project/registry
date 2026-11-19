@@ -1,10 +1,10 @@
-# Celaut Skills
+# Celaut Registry
 
 **The decentralized "App Store of problems" for AI agents on Celaut + Ergo**
 
-**Celaut Skills** is a **100% on-chain**, serverless, trustless registry where the **problems (skills)** are the protagonists.
+**Celaut Registry** is a **100% on-chain**, serverless, trustless registry where the **problems (objectives)** are the protagonists.
 
-Instead of searching for Celaut services directly, you search for a **skill** ("Optimal XAU/BTC Performance", "Sat-sorter", etc.) and inside it you automatically find:
+Instead of searching for Celaut services directly, you search for an **objective** ("Optimal XAU/BTC Performance", "Sat-sorter", etc.) and inside it you automatically find:
 
 - Services that cover it (Coverage)
 - Real comparative benchmarks
@@ -21,10 +21,10 @@ There are exactly two ways to interact with the registry, and there is **no CLI 
 
 | Purpose | Interface | How |
 |---|---|---|
-| **Read** (discover skills, coverages, benchmarks, results) | **MCP server** (read-only) | `npm run mcp` — see [MCP.md](./MCP.md). Wire it into any MCP client (Claude, etc.). |
-| **Publish** (create skills, coverages, benchmarks, results) | **`reputation-system` TypeScript library** | `createReputationBox({...})` — see [REPUTATION_LIBRARY.md](./REPUTATION_LIBRARY.md) and the example below. Requires a connected Ergo wallet. |
+| **Read** (discover objectives, coverages, benchmarks, results) | **MCP server** (read-only) | `npm run mcp` — see [MCP.md](./MCP.md). Wire it into any MCP client (Claude, etc.). |
+| **Publish** (create objectives, coverages, benchmarks, results) | **`reputation-system` TypeScript library** | `createReputationBox({...})` — see [REPUTATION_LIBRARY.md](./REPUTATION_LIBRARY.md) and the example below. Requires a connected Ergo wallet. |
 
-- **No `nodo` CLI and no standalone Celaut Skills CLI exists** for reading or publishing skills. Agents read through the MCP server; humans/apps publish through the `reputation-system` library (typically from the Svelte web app in this repo). A CLI is **not on the roadmap and not yet shipped** — if that changes it will be documented here.
+- **No `nodo` CLI and no standalone Celaut Registry CLI exists** for reading or publishing objectives. Agents read through the MCP server; humans/apps publish through the `reputation-system` library (typically from the Svelte web app in this repo). A CLI is **not on the roadmap and not yet shipped** — if that changes it will be documented here.
 - The MCP server is read-only by design: it never creates or mutates on-chain state. See the "Explicitly omitted" section of [MCP.md](./MCP.md).
 
 ---
@@ -32,11 +32,11 @@ There are exactly two ways to interact with the registry, and there is **no CLI 
 ## Philosophy and motivation
 
 Celaut has **no** central service registry (by decentralized design).
-**Celaut Skills** solves this by inverting the model:
+**Celaut Registry** solves this by inverting the model:
 
 - AI agents search for **problems**, not solutions.
 - A single comparative **Result** says more than 100 loose opinions.
-- Skills **compose** (they reference other skills) → duplicates resolve organically and in a decentralized way.
+- Objectives **compose** (they reference other objectives) → duplicates resolve organically and in a decentralized way.
 - **Everything is opinion with skin-in-the-game → nobody spams without risking reputation.**
 
 ---
@@ -71,13 +71,15 @@ The actual boxes are **Reputation Boxes** with a fixed structure:
 - **R8** = `polarization = true`
 - **R9** = JSON
 
-### 1. Skill (`celaut:skill:v1`)
-**Type NFT** → R4 = `"celaut:skill:v1"`
-**Boxes**: R5 = `skill-tag`, R6 = `true`, R9 = `Skill`
+### 1. Objective (`celaut:objective:v1`)
+**Type NFT** → R4 = `"celaut:objective:v1"`
+**Boxes**: R5 = `objective-tag`, R6 = `true`, R9 = `Objective`
+
+> Note: the Objective Type NFT id is a placeholder until it is minted. Until then `load_objectives` returns an empty list. Set the minted id in `src/lib/registry/core.mjs` (`OBJECTIVE_TYPE_ID`); `src/lib/api.ts` re-exports it from there.
 
 ### 2. Benchmark (`celaut:benchmark:v1`)
 **Type NFT** → R4 = `"celaut:benchmark:v1"`
-**Boxes**: R5 = `skill_box_id`, R6 = `true`, R9 = `Benchmark`
+**Boxes**: R5 = `objective_box_id`, R6 = `true`, R9 = `Benchmark`
 
 ### 3. Result (`celaut:result:v1`)
 **Type NFT** → R4 = `"celaut:result:v1"`
@@ -85,7 +87,7 @@ The actual boxes are **Reputation Boxes** with a fixed structure:
 
 ### 4. Coverage (`celaut:coverage:v1`)
 **Type NFT** → R4 = `"celaut:coverage:v1"`
-**Boxes**: R5 = `skill_box_id`, R6 = `false`, R9 = `Coverage`
+**Boxes**: R5 = `objective_box_id`, R6 = `false`, R9 = `Coverage`
 
 ### 5. Service Data (`celaut:service-data:v1`)
 **Type NFT** → R4 = `"celaut:service-data:v1"`
@@ -95,7 +97,7 @@ The actual boxes are **Reputation Boxes** with a fixed structure:
 **Type NFT** → R4 = `"celaut:service-metadata:v1"`
 **Boxes**: R5 = `service_id`, R9 = **arbitrary JSON** with descriptive metadata for the service (e.g. `name` / `description` / `tags`) — or a blake2b hash.
 
-> **Service Data + Service Metadata** put *part* of a service's specification on-chain (indexed by `service_id` in R5) so that clients can display a service's api/network/architecture/name in the skills UI **without downloading the full service**. They can be **published** from the app (a form on the service card) and the UI weighs competing assertions by their **reputation**.
+> **Service Data + Service Metadata** put *part* of a service's specification on-chain (indexed by `service_id` in R5) so that clients can display a service's api/network/architecture/name in the objectives UI **without downloading the full service**. They can be **published** from the app (a form on the service card) and the UI weighs competing assertions by their **reputation**.
 >
 > **R9 mode (for both):**
 > - **inline** — R9 is the JSON directly on-chain (Data: `container`/`api`/`network`; Metadata: free-form JSON).
@@ -150,28 +152,28 @@ import { createReputationBox } from 'reputation-system';
 import { walletManager } from 'wallet-svelte-component';
 
 // ... after connecting the wallet
-const skillProtoBytes = new Skill({ name: "Optimal XAU/BTC", ... }).serializeBinary();
+const objectiveProtoBytes = new Objective({ name: "Optimal XAU/BTC", ... }).serializeBinary();
 
 await createReputationBox({
-  typeId: skillTypeTokenId,
+  typeId: objectiveTypeTokenId,
   r5: "trading-xau-btc",
   r6: true,
   r7: ownerScriptHash,
   r8: true,
-  r9: Buffer.from(skillProtoBytes)
+  r9: Buffer.from(objectiveProtoBytes)
 });
 ```
 
 ---
 
-## Discovering skills (agent read path)
+## Discovering objectives (agent read path)
 
-Agents read the registry through the MCP server. Only `load_skills` takes no
-arguments — the other four tools need a `skillBoxId` or `benchmarkId` you can
-only obtain by listing skills first. So discovery always starts the same way:
+Agents read the registry through the MCP server. Only `load_objectives` takes no
+arguments — the other four tools need an `objectiveBoxId` or `benchmarkId` you can
+only obtain by listing objectives first. So discovery always starts the same way:
 
-1. **`load_skills`** (no args) → pick a `boxId` from the returned skills.
-2. **`load_skill_tree`** `{ skillBoxId }` → the whole tree (coverages, benchmarks, results) in one call.
+1. **`load_objectives`** (no args) → pick a `boxId` from the returned objectives.
+2. **`load_objective_tree`** `{ objectiveBoxId }` → the whole tree (coverages, benchmarks, results) in one call.
 
 See [MCP.md](./MCP.md) for the full tool signatures and a worked example.
 
@@ -179,7 +181,7 @@ See [MCP.md](./MCP.md) for the full tool signatures and a worked example.
 
 ## Comments with Forum Application
 
-Any Service, Skill, Result, Benchmark or Coverage can have on-chain discussion:
+Any Service, Objective, Result, Benchmark or Coverage can have on-chain discussion:
 
 ```svelte
 <script>
@@ -196,8 +198,8 @@ Any Service, Skill, Result, Benchmark or Coverage can have on-chain discussion:
 
 ## UI flow
 
-1. **/skills** → Skills gallery (ordered by reputation).
-2. Click a Skill → its coverages and benchmarks, and (with `applySkillInheritance`, see [MCP.md](./MCP.md#extended-skills)) those of the skills it extends. The MCP server's `load_skill_tree` does the same.
+1. **Home page** (single-page app; deep links use `?objective=<boxId>`) → Objectives gallery (ordered by reputation).
+2. Click an Objective → its coverages and benchmarks, and (with `applyObjectiveInheritance`, see [MCP.md](./MCP.md#extended-objectives)) those of the objectives it extends. The MCP server's `load_objective_tree` does the same.
 3. Shows a comparative table + full **Forum section**.
 4. AI agents consume the same data via the Celaut node.
 

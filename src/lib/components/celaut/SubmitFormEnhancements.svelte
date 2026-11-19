@@ -1,8 +1,8 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import type { Skill } from '$lib/types';
+  import type { Objective } from '$lib/types';
 
-  export let skills: Skill[] = [];
+  export let objectives: Objective[] = [];
   export let name: string = '';
   export let prose: string = '';
   export let domain: string = '';
@@ -13,7 +13,7 @@
   let selectedRelated: string[] = [];
   let showRelatedList = false;
 
-  // Apply prefill when it changes (e.g. from Modify Skill)
+  // Apply prefill when it changes (e.g. from Modify Objective)
   $: if (prefillRelatedBoxIds.length > 0) {
     selectedRelated = [...prefillRelatedBoxIds];
     showRelatedList = true;
@@ -33,7 +33,7 @@
   // Validation
   export function validate(): Record<string, string> {
     const errs: Record<string, string> = {};
-    if (!name.trim()) errs.name = 'Skill name is required.';
+    if (!name.trim()) errs.name = 'Objective name is required.';
     else if (name.trim().length < 3) errs.name = 'Name must be at least 3 characters.';
     if (prose.trim() && prose.trim().length < 10) errs.prose = 'Description should be at least 10 characters.';
     if (domain.trim() && !/^[a-zA-Z\/]+$/.test(domain.trim())) errs.domain = 'Domain should contain only letters (e.g. finance, ai/ml).';
@@ -44,11 +44,11 @@
   $: previewValid = name.trim().length > 0;
 </script>
 
-<!-- Related Skills Multi-select -->
-{#if skills.length > 0}
+<!-- Related Objectives Multi-select -->
+{#if objectives.length > 0}
   <div class="related-section">
     <button type="button" class="related-toggle" on:click={() => showRelatedList = !showRelatedList}>
-      <span class="related-toggle-label">Related Skills</span>
+      <span class="related-toggle-label">Related Objectives</span>
       <span class="related-toggle-count">
         {selectedRelated.length} selected
       </span>
@@ -64,19 +64,19 @@
 
     {#if showRelatedList}
       <div class="related-list">
-        {#each skills as skill}
+        {#each objectives as objective}
           <label class="related-item">
             <input
               type="checkbox"
-              checked={selectedRelated.includes(skill.boxId)}
-              on:change={() => toggleRelated(skill.boxId)}
+              checked={selectedRelated.includes(objective.boxId)}
+              on:change={() => toggleRelated(objective.boxId)}
               class="related-checkbox"
             />
             <span class="related-name">
-              {skill.name} — rep {skill.reputation ?? 0} — {skill.boxId.slice(0, 4)}
+              {objective.name} — rep {objective.reputation ?? 0} — {objective.boxId.slice(0, 4)}
             </span>
-            {#if skill.domain}
-              <span class="related-domain">{skill.domain}</span>
+            {#if objective.domain}
+              <span class="related-domain">{objective.domain}</span>
             {/if}
           </label>
         {/each}
@@ -100,7 +100,7 @@
     <p class="preview-label">Preview</p>
     <div class="preview-card">
       <div class="preview-header">
-        <h3 class="preview-name">{name.trim() || 'Untitled Skill'}</h3>
+        <h3 class="preview-name">{name.trim() || 'Untitled Objective'}</h3>
         {#if domain.trim()}
           <span class="preview-domain">{domain.trim()}</span>
         {/if}

@@ -7,7 +7,7 @@
   import { FileCard } from 'source-application';
   import RunServiceButton from '$lib/components/celaut/RunServiceButton.svelte';
   import ClaimCoverageButton from '$lib/components/celaut/ClaimCoverageButton.svelte';
-  import SkillLeaderboard from '$lib/components/celaut/SkillLeaderboard.svelte';
+  import ObjectiveLeaderboard from '$lib/components/celaut/ObjectiveLeaderboard.svelte';
   import ServiceInfoFilterBar from '$lib/components/celaut/ServiceInfoFilterBar.svelte';
 
   import { reputation_proof, explorer_uri, source_explorer_url, web_explorer_uri_token } from '$lib/common/store';
@@ -18,20 +18,20 @@
 
   import { formatServiceId, formatSourceHash } from '$lib/api';
   import { categoryIcon, categoryColor } from '$lib/categoryIcons';
-  import { calculateSkillReputation, formatReputation, trimDecimals, NANOERG_PER_ERG } from '$lib/reputation';
+  import { calculateObjectiveReputation, formatReputation, trimDecimals, NANOERG_PER_ERG } from '$lib/reputation';
   import { formatMetricValue } from '$lib/scoring';
   import { openForum } from '$lib/components/celaut/forumSidebar';
 
-  import type { Skill, Benchmark, Coverage } from '$lib/types';
+  import type { Objective, Benchmark, Coverage } from '$lib/types';
   import type { FileSource } from 'source-application';
   import type { ComparisonTensor } from '$lib/scoring';
 
   // ── Local types ──────────────────────────────────────────────────────────
-  type RelatedSkillDirection = 'outgoing' | 'incoming' | 'both';
+  type RelatedObjectiveDirection = 'outgoing' | 'incoming' | 'both';
 
-  interface RelatedSkillLink {
-    skill: Skill;
-    direction: RelatedSkillDirection;
+  interface RelatedObjectiveLink {
+    objective: Objective;
+    direction: RelatedObjectiveDirection;
   }
 
   interface ServiceBenchmarkBlock {
@@ -66,11 +66,11 @@
   };
 
   // ── Props: data ──────────────────────────────────────────────────────────
-  export let selectedSkill: Skill;
-  export let siblingSkills: Skill[] = [];
-  export let relatedSkills: RelatedSkillLink[] = [];
-  export let selectedSkillReputation: ReturnType<typeof calculateSkillReputation> | null = null;
-  export let skillSources: FileSource[] = [];
+  export let selectedObjective: Objective;
+  export let siblingObjectives: Objective[] = [];
+  export let relatedObjectives: RelatedObjectiveLink[] = [];
+  export let selectedObjectiveReputation: ReturnType<typeof calculateObjectiveReputation> | null = null;
+  export let objectiveSources: FileSource[] = [];
 
   // ── Bind props: UI state owned by parent ─────────────────────────────────
   export let detailVisible = false;
@@ -88,117 +88,117 @@
 
   // ── Callback props ────────────────────────────────────────────────────────
   export let backToGallery: () => void;
-  export let selectSkill: (skill: Skill) => void;
-  export let forkSkill: (skill: Skill) => void;
-  export let discussRelationship: (sibling: Skill) => void;
-  export let refreshSkills: (boxId?: string | null) => Promise<void>;
+  export let selectObjective: (objective: Objective) => void;
+  export let forkObjective: (objective: Objective) => void;
+  export let discussRelationship: (sibling: Objective) => void;
+  export let refreshObjectives: (boxId?: string | null) => Promise<void>;
   export let openFileSourceModal: (hash: string) => void;
   export let handleCreateBenchmark: () => Promise<void>;
   export let addBenchmarkMetric: () => void;
   export let removeBenchmarkMetric: (i: number) => void;
   export let addBenchmarkDescriptor: () => void;
   export let removeBenchmarkDescriptor: (i: number) => void;
-  export let computeRecommendedService: (skill: Skill | null) => RecommendedService | null;
+  export let computeRecommendedService: (objective: Objective | null) => RecommendedService | null;
   export let recommendedDownloadPromise: (serviceId: string | undefined) => Promise<FileSource | null>;
-  export let collectServiceResults: (serviceId: string | undefined, skill: Skill) => ServiceBenchmarkBlock[];
-  export let computeServiceCompositeScore: (serviceId: string | undefined, skill: Skill) => number;
+  export let collectServiceResults: (serviceId: string | undefined, objective: Objective) => ServiceBenchmarkBlock[];
+  export let computeServiceCompositeScore: (serviceId: string | undefined, objective: Objective) => number;
   export let toggleAllCases: (serviceId: string | undefined, benchmarkId: string) => void;
   export let allCasesKey: (serviceId: string | undefined, benchmarkId: string) => string;
   export let collectIndividualCases: (serviceId: string | undefined, benchmark: Benchmark) => IndividualCase[];
-  export let buildComparisonMatrix: (skill: Skill) => ComparisonTensor;
-  export let relatedSkillDirectionLabel: (direction: RelatedSkillDirection) => string;
+  export let buildComparisonMatrix: (objective: Objective) => ComparisonTensor;
+  export let relatedObjectiveDirectionLabel: (direction: RelatedObjectiveDirection) => string;
   export let copyToClipboard: (value: string, message?: string) => Promise<void>;
   export let formatHash: (hash: string | undefined) => string;
   export let goToProfile: () => void;
 
   // ── Local reactive ────────────────────────────────────────────────────────
-  $: DetailCategoryIcon = categoryIcon(selectedSkill.domain);
-  // ERG staked behind this skill's reputation. Reputation is stored on-chain as
+  $: DetailCategoryIcon = categoryIcon(selectedObjective.domain);
+  // ERG staked behind this objective's reputation. Reputation is stored on-chain as
   // burned nanoERG; render it as a plain ERG figure for the detail-view
   // "N ERG staked" section (this is stake — a trust signal — NOT a price, which
   // is exactly why it was removed from the search cards).
-  $: stakedErg = trimDecimals((selectedSkillReputation?.total ?? 0) / NANOERG_PER_ERG, 4);
-  // Lazy hydration: on the live Ergo path a skill's coverages/benchmarks/results
+  $: stakedErg = trimDecimals((selectedObjectiveReputation?.total ?? 0) / NANOERG_PER_ERG, 4);
+  // Lazy hydration: on the live Ergo path an objective's coverages/benchmarks/results
   // are fetched on demand. Until that resolves the arrays are empty, so any tab
   // count would read a misleading 0 that doesn't match a list still filling in.
-  // Gate the numeric badges on `__hydrated` (demo skills ship pre-hydrated, so
+  // Gate the numeric badges on `__hydrated` (demo objectives ship pre-hydrated, so
   // this is always true there) and show a small placeholder until then, so the
   // displayed counter always equals the length of the list actually rendered.
-  $: skillHydrated = selectedSkill.__hydrated !== false;
+  $: objectiveHydrated = selectedObjective.__hydrated !== false;
   // The "Service solutions" list only renders coverages that pass the active
   // service filters (see the `serviceMatches` guard in the coverages tab). Count
   // the SAME predicate here so the tab badge always equals the number of cards
   // actually shown — otherwise a filtered-out coverage still inflates the count.
   // With no filters active `serviceMatches` returns true for all, so this equals
   // coverages.length (the common case).
-  $: visibleCoverageCount = selectedSkill.coverages.filter((cov) =>
+  $: visibleCoverageCount = selectedObjective.coverages.filter((cov) =>
     serviceMatches(cov.serviceId, $serviceInfoRegistry, $serviceFilters)
   ).length;
 </script>
 
-<!-- ── Skill Detail ──────────────────────────────────────────────────── -->
+<!-- ── Objective Detail ──────────────────────────────────────────────────── -->
 <div class="detail-view" class:detail-visible={detailVisible}>
   <div class="detail-container">
     <BackButton label="Back to gallery" on:click={backToGallery} />
 
     <ShareModal
       bind:open={shareModalOpen}
-      skillName={selectedSkill.name}
-      skillBoxId={selectedSkill.boxId}
-      description={selectedSkill.prose}
+      objectiveName={selectedObjective.name}
+      objectiveBoxId={selectedObjective.boxId}
+      description={selectedObjective.prose}
     />
 
-    <!-- Skill header card -->
+    <!-- Objective header card -->
     <div class="detail-card">
       <div class="flex flex-wrap gap-3 items-start justify-between mb-4">
         <div class="flex flex-wrap items-center gap-3 min-w-0">
           <span
             class="detail-category-icon"
-            style="color: hsl({categoryColor(selectedSkill.domain)});"
-            title={`Category: ${selectedSkill.domain || 'Other'}`}
+            style="color: hsl({categoryColor(selectedObjective.domain)});"
+            title={`Category: ${selectedObjective.domain || 'Other'}`}
             aria-hidden="true"
           >
             <svelte:component this={DetailCategoryIcon} size={26} strokeWidth={1.8} />
           </span>
-          <h1 class="text-2xl md:text-3xl font-extrabold">{selectedSkill.name}</h1>
-          <InfoTip title="What is a Skill?">
-            <p>A <strong>Skill</strong> is an on-chain declaration of a capability: a name, a prose description (what an agent must accomplish), an optional formal spec, and tags. Services <em>cover</em> a skill by claiming they can perform it, and <em>benchmarks</em> measure how well.</p>
-            <p>Each skill is a UTXO of the Skill Type NFT — click the explorer icon next to it to see the box on-chain.</p>
+          <h1 class="text-2xl md:text-3xl font-extrabold">{selectedObjective.name}</h1>
+          <InfoTip title="What is an Objective?">
+            <p>An <strong>Objective</strong> is an on-chain declaration of a problem to solve: a name, a prose description (what an agent must accomplish), an optional formal spec, and tags. Services <em>cover</em> an objective by claiming they can perform it, and <em>benchmarks</em> measure how well.</p>
+            <p>Each objective is a UTXO of the Objective Type NFT — click the explorer icon next to it to see the box on-chain.</p>
           </InfoTip>
-          <ExplorerLink boxId={selectedSkill.boxId} liveTooltip="View Skill box on Ergo Explorer" />
+          <ExplorerLink boxId={selectedObjective.boxId} liveTooltip="View Objective box on Ergo Explorer" />
           <!-- Reputation now lives in a dedicated, clearly-labelled section below
                the prose (see .detail-reputation-section) rather than as an inline
                header badge, so the ERG stake reads as a trust signal, not noise. -->
         </div>
-        {#if selectedSkill.domain}
-          <span class="detail-domain-badge">{selectedSkill.domain}</span>
+        {#if selectedObjective.domain}
+          <span class="detail-domain-badge">{selectedObjective.domain}</span>
         {/if}
         <div class="detail-header-actions">
-          <button class="share-skill-btn" on:click={() => (shareModalOpen = true)}>
+          <button class="share-objective-btn" on:click={() => (shareModalOpen = true)}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
             </svg>
             Share
           </button>
-          <button class="fork-skill-btn" on:click={() => forkSkill(selectedSkill)}>
+          <button class="fork-objective-btn" on:click={() => forkObjective(selectedObjective)}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><path d="M18 9v1a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9"/><line x1="12" y1="12" x2="12" y2="15"/>
             </svg>
-            Modify Skill
+            Modify Objective
           </button>
         </div>
       </div>
-      <p class="skill-detail-prose">{selectedSkill.prose || "No description."}</p>
+      <p class="objective-detail-prose">{selectedObjective.prose || "No description."}</p>
 
       <!-- Reputation section — the correct home for the ERG stake (moved off the
            search cards, where "N ERGs" was misread as a price). Clearly labelled
            and explained here as a trust signal. -->
-      {#if selectedSkillReputation}
+      {#if selectedObjectiveReputation}
         <section class="detail-reputation-section" aria-label="Reputation">
           <div class="detail-reputation-head">
             <span class="detail-reputation-heading">Reputation</span>
-            {#if selectedSkillReputation.label}
-              <span class="detail-reputation-tier">{selectedSkillReputation.label}</span>
+            {#if selectedObjectiveReputation.label}
+              <span class="detail-reputation-tier">{selectedObjectiveReputation.label}</span>
             {/if}
           </div>
           <div class="detail-reputation-stake">
@@ -208,31 +208,31 @@
             <span class="detail-reputation-amount">{stakedErg} ERG staked</span>
           </div>
           <p class="detail-reputation-note">
-            Reputation is backed by ERG stake — a signal of commitment and trust behind this skill, not a price to use it.
+            Reputation is backed by ERG stake — a signal of commitment and trust behind this objective, not a price to use it.
           </p>
         </section>
       {/if}
 
-      {#if selectedSkill.sourceHash}
+      {#if selectedObjective.sourceHash}
         <details class="source-details mb-4">
           <summary class="source-summary">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
             </svg>
             <span>Source Document</span>
-            <code class="source-hash-inline-code">{formatSourceHash(selectedSkill.sourceHash)}</code>
+            <code class="source-hash-inline-code">{formatSourceHash(selectedObjective.sourceHash)}</code>
           </summary>
           <div class="source-card-container mt-3">
             <FileCard
-              fileHash={selectedSkill.sourceHash}
+              fileHash={selectedObjective.sourceHash}
               profile={$reputation_proof}
-              sources={skillSources}
+              sources={objectiveSources}
               explorerUri={$explorer_uri}
               source_explorer_url={$source_explorer_url}
               webExplorerUriTkn={$web_explorer_uri_token}
             />
             {#if $reputation_proof}
-              <button class="add-source-btn mt-2" on:click={() => openFileSourceModal(selectedSkill?.sourceHash || '')}>
+              <button class="add-source-btn mt-2" on:click={() => openFileSourceModal(selectedObjective?.sourceHash || '')}>
                 + Add Download Source
               </button>
             {/if}
@@ -240,24 +240,24 @@
         </details>
       {/if}
       <!-- Current submissions — other on-chain submissions of this same
-           skill (siblings: same name, different boxId). Always rendered,
+           objective (siblings: same name, different boxId). Always rendered,
            with an empty state when there are none. -->
       <div class="submissions-block">
         <div class="submissions-head">
-          <span class="submissions-label">Current submissions for this skill</span>
+          <span class="submissions-label">Current submissions for this objective</span>
           <InfoTip title="Current submissions">
-            <p>Other on-chain <strong>submissions</strong> of this same skill — entries published with the same name but a different Box ID (alternative versions or authors).</p>
-            <p>Each is its own Skill UTXO; select one to view its services, benchmarks and reputation.</p>
+            <p>Other on-chain <strong>submissions</strong> of this same objective — entries published with the same name but a different Box ID (alternative versions or authors).</p>
+            <p>Each is its own Objective UTXO; select one to view its services, benchmarks and reputation.</p>
           </InfoTip>
         </div>
-        {#if siblingSkills.length === 0}
-          <p class="submissions-empty">No other submissions for this skill yet.</p>
+        {#if siblingObjectives.length === 0}
+          <p class="submissions-empty">No other submissions for this objective yet.</p>
         {:else}
           <ul class="duplicate-notice-list">
-            {#each siblingSkills as sibling (sibling.boxId)}
-              {@const sibRep = calculateSkillReputation(sibling).total}
+            {#each siblingObjectives as sibling (sibling.boxId)}
+              {@const sibRep = calculateObjectiveReputation(sibling).total}
               <li class="duplicate-notice-row">
-                <button type="button" class="duplicate-notice-item" on:click={() => selectSkill(sibling)}>
+                <button type="button" class="duplicate-notice-item" on:click={() => selectObjective(sibling)}>
                   <ProfileAvatar profileId={sibling.profileId} size={16} title={`Submitted by ${sibling.profileId}`} />
                   <span class="duplicate-notice-item-name">{sibling.name}</span>
                   {#if sibling.domain}
@@ -274,8 +274,8 @@
                 <button
                   type="button"
                   class="duplicate-notice-discuss"
-                  title={`Discuss relationship: ${selectedSkill.name} ↔ ${sibling.name}`}
-                  aria-label={`Discuss relationship between ${selectedSkill.name} and ${sibling.name}`}
+                  title={`Discuss relationship: ${selectedObjective.name} ↔ ${sibling.name}`}
+                  aria-label={`Discuss relationship between ${selectedObjective.name} and ${sibling.name}`}
                   on:click|stopPropagation={() => discussRelationship(sibling)}
                 >
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -288,7 +288,7 @@
         {/if}
       </div>
       <div class="flex flex-wrap gap-2 mb-5">
-        {#each selectedSkill.tags as tag}
+        {#each selectedObjective.tags as tag}
           <span class="detail-tag">{tag}</span>
         {/each}
       </div>
@@ -297,16 +297,16 @@
       <div class="detail-meta-row">
         <span class="detail-meta-item">
           <span class="detail-meta-label">Box ID</span>
-          <code class="detail-meta-value">{selectedSkill.boxId}</code>
+          <code class="detail-meta-value">{selectedObjective.boxId}</code>
         </span>
-        {#if selectedSkill.sourceHash}
+        {#if selectedObjective.sourceHash}
           <span class="detail-meta-item">
             <span class="detail-meta-label">Source Hash</span>
-            <code class="detail-meta-value">{formatSourceHash(selectedSkill.sourceHash)}</code>
+            <code class="detail-meta-value">{formatSourceHash(selectedObjective.sourceHash)}</code>
             <button
               class="detail-meta-copy"
               title="Copy full hash"
-              on:click={() => copyToClipboard(selectedSkill?.sourceHash || '', 'Hash copied to clipboard')}
+              on:click={() => copyToClipboard(selectedObjective?.sourceHash || '', 'Hash copied to clipboard')}
             >
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
@@ -314,11 +314,11 @@
             </button>
           </span>
         {/if}
-        <!-- Skill creator (submitter): icon + profile id, on its own bottom row. -->
+        <!-- Objective creator (submitter): icon + profile id, on its own bottom row. -->
         <span class="detail-meta-item detail-meta-creator">
           <span class="detail-meta-label">Creator</span>
-          <ProfileAvatar profileId={selectedSkill.profileId} size={20} title={`Skill submitted by ${selectedSkill.profileId}`} />
-          <code class="detail-meta-value">{selectedSkill.profileId}</code>
+          <ProfileAvatar profileId={selectedObjective.profileId} size={20} title={`Objective submitted by ${selectedObjective.profileId}`} />
+          <code class="detail-meta-value">{selectedObjective.profileId}</code>
         </span>
       </div>
     </div>
@@ -328,14 +328,14 @@
          the single-element {#each} so it re-derives on every render (see
          computeRecommendedService — coverages mutate in place and no $:
          reactive would catch it). -->
-    {#each [computeRecommendedService(selectedSkill)] as recommendedService (recommendedService?.coverage.serviceId ?? 'none')}
+    {#each [computeRecommendedService(selectedObjective)] as recommendedService (recommendedService?.coverage.serviceId ?? 'none')}
       {#if recommendedService}
       <section class="best-service-card">
         <div class="best-service-eyebrow">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
           </svg>
-          Recommended service for this skill
+          Recommended service for this objective
         </div>
         <div class="best-service-body">
           <div class="best-service-text">
@@ -356,7 +356,7 @@
             </span>
             <InfoTip title="Why this service is recommended">
               <p>Ranked by its <strong>global score</strong> (0–1) from the multi-criteria scoring system: <code>β · Score_Perf + (1−β) · W_S</code> with β=0.7 — 70% verified benchmark performance (confidence-weighted by the reputation of each result, its uploader and the benchmark) and 30% the service's own reputation.</p>
-              <p>A service still shows here when it's the only one or has no benchmark results yet — it's then scored on its reputation alone — including services that solve the skill via a submitted result rather than a coverage box. Full method: see the scoring system on the <em>How it works</em> page.</p>
+              <p>A service still shows here when it's the only one or has no benchmark results yet — it's then scored on its reputation alone — including services that solve the objective via a submitted result rather than a coverage box. Full method: see the scoring system on the <em>How it works</em> page.</p>
             </InfoTip>
           </div>
         </div>
@@ -395,8 +395,8 @@
     <!-- Action buttons: Claim Coverage + Create Benchmark -->
     <div class="action-row">
       <ClaimCoverageButton
-        skillBoxId={selectedSkill.boxId}
-        on:created={() => refreshSkills(selectedSkill?.boxId ?? null)}
+        objectiveBoxId={selectedObjective.boxId}
+        on:created={() => refreshObjectives(selectedObjective?.boxId ?? null)}
       />
       <button
         class="create-benchmark-btn"
@@ -412,7 +412,7 @@
       <button
         class="open-discussion-link"
         type="button"
-        on:click={() => openForum(selectedSkill.boxId, `Skill: ${selectedSkill.name}`)}
+        on:click={() => openForum(selectedObjective.boxId, `Objective: ${selectedObjective.name}`)}
       >
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
@@ -536,8 +536,8 @@
         on:click={() => { detailTab = "benchmarks"; selectedBenchmarkId = null; }}
       >
         Benchmarks
-        {#if skillHydrated}
-          <span class="detail-tab-count">{selectedSkill.benchmarks.length}</span>
+        {#if objectiveHydrated}
+          <span class="detail-tab-count">{selectedObjective.benchmarks.length}</span>
         {:else}
           <span class="detail-tab-count detail-tab-count-loading" aria-hidden="true">…</span>
         {/if}
@@ -548,7 +548,7 @@
         on:click={() => detailTab = "coverages"}
       >
         Service solutions
-        {#if skillHydrated}
+        {#if objectiveHydrated}
           <span class="detail-tab-count">{visibleCoverageCount}</span>
         {:else}
           <span class="detail-tab-count detail-tab-count-loading" aria-hidden="true">…</span>
@@ -561,10 +561,10 @@
       >
         Comparative
       </button>
-      <InfoTip title="Three views of the same skill">
+      <InfoTip title="Three views of the same objective">
         <ul>
           <li><strong>Benchmarks</strong> — definitions of <em>how</em> performance is measured (case descriptors + performance metrics). Submit results here.</li>
-          <li><strong>Service solutions</strong> — services that implement (solve) the skill, and how each scores per benchmark, grouped by descriptor. Not to be confused with a benchmark's <em>runner</em> services.</li>
+          <li><strong>Service solutions</strong> — services that implement (solve) the objective, and how each scores per benchmark, grouped by descriptor. Not to be confused with a benchmark's <em>runner</em> services.</li>
           <li><strong>Comparative</strong> — the full service × (benchmark → metric) tensor with a single composite score.</li>
         </ul>
       </InfoTip>
@@ -572,12 +572,12 @@
 
     <!-- Benchmarks Tab -->
     {#if detailTab === "benchmarks"}
-      <SkillLeaderboard
-        benchmarks={selectedSkill.benchmarks}
+      <ObjectiveLeaderboard
+        benchmarks={selectedObjective.benchmarks}
         bind:selectedBenchmarkId
-        skillName={selectedSkill.name}
+        objectiveName={selectedObjective.name}
         onAddSource={openFileSourceModal}
-        on:created={() => refreshSkills(selectedSkill?.boxId ?? null)}
+        on:created={() => refreshObjectives(selectedObjective?.boxId ?? null)}
       />
     {/if}
 
@@ -586,7 +586,7 @@
       <section class="detail-section">
         <div class="detail-section-header detail-section-header-bare">
           <InfoTip title="What is a service solution?">
-            <p>A <strong>service solution</strong> is a service that implements (solves) this skill — its on-chain claim that it can perform the skill, recorded as a Coverage UTXO pointing back at the Skill box. (A service that has submitted a Result counts too.)</p>
+            <p>A <strong>service solution</strong> is a service that implements (solves) this objective — its on-chain claim that it can perform the objective, recorded as a Coverage UTXO pointing back at the Objective box. (A service that has submitted a Result counts too.)</p>
             <p>These are distinct from a benchmark's <strong>runner</strong> services, which only execute the benchmark.</p>
             <p>Per service, results are grouped per benchmark with two layers:</p>
             <ul>
@@ -595,16 +595,16 @@
             </ul>
           </InfoTip>
         </div>
-        {#if selectedSkill.coverages.length === 0}
+        {#if selectedObjective.coverages.length === 0}
           <div class="detail-empty">
-            <p>No service solutions yet. Be the first to solve this skill.</p>
+            <p>No service solutions yet. Be the first to solve this objective.</p>
           </div>
         {:else}
           <ServiceInfoFilterBar />
           <div class="space-y-3">
-            {#each selectedSkill.coverages as cov}
-              {@const serviceBlocks = collectServiceResults(cov.serviceId, selectedSkill)}
-              {@const compositeScore = computeServiceCompositeScore(cov.serviceId, selectedSkill)}
+            {#each selectedObjective.coverages as cov}
+              {@const serviceBlocks = collectServiceResults(cov.serviceId, selectedObjective)}
+              {@const compositeScore = computeServiceCompositeScore(cov.serviceId, selectedObjective)}
               {#if serviceMatches(cov.serviceId, $serviceInfoRegistry, $serviceFilters)}
               <div class="coverage-card">
                 <div class="coverage-card-header">
@@ -747,15 +747,15 @@
             <p>Highlighted cells = best raw value in that column.</p>
           </InfoTip>
         </div>
-        {#if selectedSkill.coverages.length === 0 || selectedSkill.benchmarks.length === 0}
+        {#if selectedObjective.coverages.length === 0 || selectedObjective.benchmarks.length === 0}
           <div class="detail-empty">
             <p>Comparison requires at least one service solution and one benchmark.</p>
           </div>
         {:else}
-          {@const matrix = buildComparisonMatrix(selectedSkill)}
+          {@const matrix = buildComparisonMatrix(selectedObjective)}
           {#if matrix.columns.length === 0}
             <div class="detail-empty">
-              <p>None of this skill's benchmarks declare performance metrics yet.</p>
+              <p>None of this objective's benchmarks declare performance metrics yet.</p>
             </div>
           {:else}
             <div class="comparative-wrapper">
@@ -798,20 +798,20 @@
       </section>
     {/if}
 
-    <!-- Related skills -->
-    {#if relatedSkills.length > 0}
-    <!-- Lo ocultamos, pues es igual a "concurrent submissions for this skill"-->
+    <!-- Related objectives -->
+    {#if relatedObjectives.length > 0}
+    <!-- Lo ocultamos, pues es igual a "concurrent submissions for this objective"-->
       <section class="detail-section" hidden>
         <div class="detail-section-header">
-          <h2 class="detail-section-title">Related Skills</h2>
-          <span class="detail-count">{relatedSkills.length}</span>
+          <h2 class="detail-section-title">Related Objectives</h2>
+          <span class="detail-count">{relatedObjectives.length}</span>
         </div>
         <div class="space-y-2">
-          {#each relatedSkills as related}
-            <button class="detail-related-btn" on:click={() => selectSkill(related.skill)}>
-              <span class="font-medium">{related.skill.name}</span>
+          {#each relatedObjectives as related}
+            <button class="detail-related-btn" on:click={() => selectObjective(related.objective)}>
+              <span class="font-medium">{related.objective.name}</span>
               <span class="detail-related-direction text-xs text-muted-foreground uppercase tracking-wide ml-auto">
-                {relatedSkillDirectionLabel(related.direction)}
+                {relatedObjectiveDirectionLabel(related.direction)}
               </span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -858,16 +858,16 @@
   .detail-header-actions {
     @apply inline-flex items-center gap-2;
   }
-  .fork-skill-btn,
-  .share-skill-btn {
+  .fork-objective-btn,
+  .share-objective-btn {
     @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200;
     background: hsl(var(--muted) / 0.5);
     border: 1px solid hsl(var(--border));
     color: hsl(var(--muted-foreground));
     cursor: pointer;
   }
-  .fork-skill-btn:hover,
-  .share-skill-btn:hover {
+  .fork-objective-btn:hover,
+  .share-objective-btn:hover {
     background: hsl(var(--muted));
     color: hsl(var(--foreground));
     border-color: hsl(var(--foreground) / 0.2);
@@ -1068,8 +1068,8 @@
     background: hsl(var(--muted) / 0.3);
   }
 
-  /* ── Skill description ──────────────────────────────────────────────── */
-  .skill-detail-prose {
+  /* ── Objective description ──────────────────────────────────────────────── */
+  .objective-detail-prose {
     width: 100%;
     max-width: 84ch;
     margin-bottom: 1.5rem;

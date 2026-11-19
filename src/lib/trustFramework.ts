@@ -1,7 +1,7 @@
 /**
  * Strict Definition + Dependency-and-Trust-Framework Type NFTs.
  *
- * Two brand-free Type NFTs so a user only has to think about the *skill* they
+ * Two brand-free Type NFTs so a user only has to think about the *objective* they
  * want; everything under it (services, benchmarks, and the networks services
  * connect through) is pinned down formally — no logos, no marketing.
  *
@@ -17,7 +17,7 @@
  *
  *  1. Strict Definition (Tag-Prose-Formal)
  *     ─────────────────────────────────────
- *     An improvable formalization of ANY concept — a skill, a benchmark space,
+ *     An improvable formalization of ANY concept — an objective, a benchmark space,
  *     or a network — as `tag` + human `prose` + machine-checkable `formal`.
  *     It is self-contained: it POINTS TO NOTHING (R5 empty). Its whole payload
  *     lives in R9.
@@ -26,7 +26,7 @@
  *     ──────────────────────────────
  *     A Sigmaverse-Quality-Standard KyA assessment OF a Strict Definition. It
  *     points at the Strict Definition via R5 (object_pointer) — the same slot a
- *     Benchmark uses to point at its Skill — and carries the per-action trust +
+ *     Benchmark uses to point at its Objective — and carries the per-action trust +
  *     access structure in R9. See https://ergoforum.org/t/sigmaverse-update/5222
  *
  * The two summary scores (Weakest Link, Average Risk) are NOT stored on-chain.

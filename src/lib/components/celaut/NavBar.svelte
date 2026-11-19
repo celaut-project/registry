@@ -13,7 +13,7 @@
         <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
         <line x1="2" y1="12" x2="22" y2="12"/>
       </svg>
-      <span class="font-semibold">Unstoppable Skills</span>
+      <span class="font-semibold">Celaut Registry</span>
     </a>
 
     <div class="flex-1 flex items-center justify-center px-8 max-w-lg mx-auto">
@@ -24,7 +24,7 @@
         <input
           type="text"
           bind:value={$searchQuery}
-          placeholder="Search skills, tags, domains…"
+          placeholder="Search objectives, tags, domains…"
           class="w-full pl-9 pr-4 py-2 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
         />
       </div>

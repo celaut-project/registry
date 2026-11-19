@@ -1,16 +1,16 @@
 /**
  * In-memory mock database for demo mode.
  * Mirrors the Ergo API functions with local data.
- * Pre-populated with getDemoSkills() data.
+ * Pre-populated with getDemoObjectives() data.
  */
 
 import type { DataProvider } from './dataProvider';
 import type {
-  Skill,
+  Objective,
   Coverage,
   Benchmark,
   Result,
-  SkillCreationInput,
+  ObjectiveCreationInput,
   CoverageCreationInput,
   BenchmarkCreationInput,
   ResultCreationInput,
@@ -18,14 +18,14 @@ import type {
   StrictDefinitionCreationInput,
   TrustFrameworkCreationInput
 } from './types';
-import { applySkillInheritance, getDemoSkills } from './api';
+import { applyObjectiveInheritance, getDemoObjectives } from './api';
 
 class MockDatabase implements DataProvider {
-  private skills: Skill[];
+  private objectives: Objective[];
   private writeCounter = 0;
 
   constructor() {
-    this.skills = getDemoSkills();
+    this.objectives = getDemoObjectives();
   }
 
   private clone<T>(value: T): T {
@@ -44,12 +44,12 @@ class MockDatabase implements DataProvider {
     return `demo-${kind}-${Date.now().toString(36)}-${this.writeCounter}`;
   }
 
-  private syncSkillCounters(skill: Skill): void {
-    skill.resultCount = skill.benchmarks.reduce((sum, benchmark) => sum + benchmark.results.length, 0);
+  private syncObjectiveCounters(objective: Objective): void {
+    objective.resultCount = objective.benchmarks.reduce((sum, benchmark) => sum + benchmark.results.length, 0);
   }
 
-  private findSkill(boxId: string): Skill | undefined {
-    return this.skills.find((skill) => skill.boxId === boxId);
+  private findObjective(boxId: string): Objective | undefined {
+    return this.objectives.find((objective) => objective.boxId === boxId);
   }
 
 
@@ -58,36 +58,36 @@ class MockDatabase implements DataProvider {
     return profileId || this.createId('profile');
   }
 
-  private findBenchmark(benchmarkId: string): { skill: Skill; benchmark: Benchmark } | undefined {
-    for (const skill of this.skills) {
-      const benchmark = skill.benchmarks.find((item) => item.id === benchmarkId);
+  private findBenchmark(benchmarkId: string): { objective: Objective; benchmark: Benchmark } | undefined {
+    for (const objective of this.objectives) {
+      const benchmark = objective.benchmarks.find((item) => item.id === benchmarkId);
       if (benchmark) {
-        return { skill, benchmark };
+        return { objective, benchmark };
       }
     }
     return undefined;
   }
 
-  async loadSkills(): Promise<Skill[]> {
+  async loadObjectives(): Promise<Objective[]> {
     // Return a deep copy to prevent mutation
-    return applySkillInheritance(this.clone(this.skills));
+    return applyObjectiveInheritance(this.clone(this.objectives));
   }
 
-  async hydrateSkill(_skill: Skill): Promise<void> {
-    // No-op: demo skills ship fully populated (getDemoSkills), so there is
+  async hydrateObjective(_objective: Objective): Promise<void> {
+    // No-op: demo objectives ship fully populated (getDemoObjectives), so there is
     // nothing to lazily fetch.
   }
 
-  async loadCoverages(skillBoxId: string): Promise<Coverage[]> {
-    const skill = applySkillInheritance(this.clone(this.skills)).find(s => s.boxId === skillBoxId);
-    if (!skill) return [];
-    return this.clone(skill.coverages);
+  async loadCoverages(objectiveBoxId: string): Promise<Coverage[]> {
+    const objective = applyObjectiveInheritance(this.clone(this.objectives)).find(s => s.boxId === objectiveBoxId);
+    if (!objective) return [];
+    return this.clone(objective.coverages);
   }
 
-  async loadBenchmarks(skillBoxId: string): Promise<Benchmark[]> {
-    const skill = applySkillInheritance(this.clone(this.skills)).find(s => s.boxId === skillBoxId);
-    if (!skill) return [];
-    return this.clone(skill.benchmarks);
+  async loadBenchmarks(objectiveBoxId: string): Promise<Benchmark[]> {
+    const objective = applyObjectiveInheritance(this.clone(this.objectives)).find(s => s.boxId === objectiveBoxId);
+    if (!objective) return [];
+    return this.clone(objective.benchmarks);
   }
 
   async loadBenchmarkCoverages(benchmarkId: string): Promise<Coverage[]> {
@@ -97,8 +97,8 @@ class MockDatabase implements DataProvider {
   }
 
   async loadResults(benchmarkId: string): Promise<Result[]> {
-    for (const skill of this.skills) {
-      for (const bench of skill.benchmarks) {
+    for (const objective of this.objectives) {
+      for (const bench of objective.benchmarks) {
         if (bench.id === benchmarkId) {
           return this.clone(bench.results);
         }
@@ -107,10 +107,10 @@ class MockDatabase implements DataProvider {
     return [];
   }
 
-  async createSkill(input: SkillCreationInput): Promise<string> {
-    const boxId = this.createId('skill');
+  async createObjective(input: ObjectiveCreationInput): Promise<string> {
+    const boxId = this.createId('objective');
     const profileId = this.getProfileId(input.mainBox);
-    const skill: Skill = {
+    const objective: Objective = {
       boxId,
       profileId,
       name: input.name,
@@ -118,7 +118,7 @@ class MockDatabase implements DataProvider {
       formal: input.formal ?? '',
       tags: [...input.tags],
       domain: input.domain,
-      extendedSkillBoxIds: [...input.extendedSkillBoxIds],
+      extendedObjectiveBoxIds: [...input.extendedObjectiveBoxIds],
       coverages: [],
       benchmarks: [],
       resultCount: 0,
@@ -126,14 +126,14 @@ class MockDatabase implements DataProvider {
       sourceHash: input.sourceHash
     };
 
-    this.skills.push(skill);
-    return this.createTxId('skill');
+    this.objectives.push(objective);
+    return this.createTxId('objective');
   }
 
   async createCoverage(input: CoverageCreationInput): Promise<string> {
     const profileId = this.getProfileId(input.mainBox);
 
-    // Benchmark-targeted coverage: attach to the benchmark, not the skill.
+    // Benchmark-targeted coverage: attach to the benchmark, not the objective.
     if (input.benchmarkId) {
       const match = this.findBenchmark(input.benchmarkId);
       if (!match) {
@@ -150,12 +150,12 @@ class MockDatabase implements DataProvider {
       return this.createTxId('coverage');
     }
 
-    const skill = this.findSkill(input.skillBoxId);
-    if (!skill) {
-      throw new Error(`Skill ${input.skillBoxId} not found.`);
+    const objective = this.findObjective(input.objectiveBoxId);
+    if (!objective) {
+      throw new Error(`Objective ${input.objectiveBoxId} not found.`);
     }
 
-    skill.coverages.push({
+    objective.coverages.push({
       boxId: this.createId('cov'),
       profileId,
       serviceId: input.serviceId,
@@ -166,16 +166,16 @@ class MockDatabase implements DataProvider {
   }
 
   async createBenchmark(input: BenchmarkCreationInput): Promise<string> {
-    const skill = this.findSkill(input.skillBoxId);
-    if (!skill) {
-      throw new Error(`Skill ${input.skillBoxId} not found.`);
+    const objective = this.findObjective(input.objectiveBoxId);
+    if (!objective) {
+      throw new Error(`Objective ${input.objectiveBoxId} not found.`);
     }
 
     const profileId = this.getProfileId(input.mainBox);
-    skill.benchmarks.push({
+    objective.benchmarks.push({
       id: this.createId('bench'),
       profileId,
-      skillBoxId: input.skillBoxId,
+      objectiveBoxId: input.objectiveBoxId,
       name: input.name,
       description: input.description,
       caseDescriptors: [...(input.caseDescriptors ?? [])],
@@ -186,7 +186,7 @@ class MockDatabase implements DataProvider {
       sourceHash: input.sourceHash
     });
 
-    this.syncSkillCounters(skill);
+    this.syncObjectiveCounters(objective);
     return this.createTxId('benchmark');
   }
 
@@ -212,7 +212,7 @@ class MockDatabase implements DataProvider {
       reputation: 0
     });
 
-    this.syncSkillCounters(match.skill);
+    this.syncObjectiveCounters(match.objective);
     return this.createTxId('result');
   }
 
@@ -237,7 +237,7 @@ class MockDatabase implements DataProvider {
 
   /** Reset the database to initial demo data. */
   reset(): void {
-    this.skills = getDemoSkills();
+    this.objectives = getDemoObjectives();
   }
 }
 

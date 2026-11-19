@@ -1,15 +1,15 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { total_burned_string, type ReputationProof, type RPBox } from 'reputation-system';
-  import type { Skill, Benchmark, Coverage, Result } from '$lib/types';
+  import type { Objective, Benchmark, Coverage, Result } from '$lib/types';
   import { formatReputation } from '$lib/reputation';
   import { hexToUtf8 } from '$lib/ergo/envs';
   import ProfileAvatar from './ProfileAvatar.svelte';
 
   export let proof: ReputationProof;
   export let readOnly = false;
-  /** Full skills list; the card self-computes this profile's contributions. */
-  export let skills: Skill[] = [];
+  /** Full objectives list; the card self-computes this profile's contributions. */
+  export let objectives: Objective[] = [];
   export let profiles: ReputationProof[] = [];
   export let activeProfileId: string | undefined = undefined;
 
@@ -18,7 +18,7 @@
     updateProfileData: { data: Record<string, unknown> };
     selectProfile: string;
     createProfile: void;
-    navigateSkill: string;
+    navigateObjective: string;
   }>();
 
   type Row = { key: string; value: string };
@@ -82,26 +82,26 @@
 
   /* ── Single source of truth: profile contributions ──────────────────── */
   interface ProfileContributions {
-    submittedSkills: Skill[];
-    coverages: Array<{ skill: Skill; coverage: Coverage }>;
-    benchmarks: Array<{ skill: Skill; benchmark: Benchmark }>;
-    results: Array<{ skill: Skill; benchmark: Benchmark; result: Result }>;
+    submittedObjectives: Objective[];
+    coverages: Array<{ objective: Objective; coverage: Coverage }>;
+    benchmarks: Array<{ objective: Objective; benchmark: Benchmark }>;
+    results: Array<{ objective: Objective; benchmark: Benchmark; result: Result }>;
   }
 
   $: profileContributions = ((): ProfileContributions => {
-    const empty: ProfileContributions = { submittedSkills: [], coverages: [], benchmarks: [], results: [] };
+    const empty: ProfileContributions = { submittedObjectives: [], coverages: [], benchmarks: [], results: [] };
     const pid = proof.token_id;
     if (!pid) return empty;
-    const acc: ProfileContributions = { submittedSkills: [], coverages: [], benchmarks: [], results: [] };
-    for (const skill of skills) {
-      if (skill.profileId === pid) acc.submittedSkills.push(skill);
-      for (const cov of (skill.coverages ?? [])) {
-        if (cov.profileId === pid) acc.coverages.push({ skill, coverage: cov });
+    const acc: ProfileContributions = { submittedObjectives: [], coverages: [], benchmarks: [], results: [] };
+    for (const objective of objectives) {
+      if (objective.profileId === pid) acc.submittedObjectives.push(objective);
+      for (const cov of (objective.coverages ?? [])) {
+        if (cov.profileId === pid) acc.coverages.push({ objective, coverage: cov });
       }
-      for (const bench of (skill.benchmarks ?? [])) {
-        if (bench.profileId === pid) acc.benchmarks.push({ skill, benchmark: bench });
+      for (const bench of (objective.benchmarks ?? [])) {
+        if (bench.profileId === pid) acc.benchmarks.push({ objective, benchmark: bench });
         for (const result of (bench.results ?? [])) {
-          if (result.profileId === pid) acc.results.push({ skill, benchmark: bench, result });
+          if (result.profileId === pid) acc.results.push({ objective, benchmark: bench, result });
         }
       }
     }
@@ -109,13 +109,13 @@
   })();
 
   /* ── Collapse state (default collapsed) ─────────────────────────────── */
-  let collapsedSkills = true;
+  let collapsedObjectives = true;
   let collapsedBenchmarks = true;
   let collapsedServices = true;
   let collapsedResults = true;
 
-  function toggleCollapse(which: 'skills' | 'benchmarks' | 'services' | 'results') {
-    if (which === 'skills') collapsedSkills = !collapsedSkills;
+  function toggleCollapse(which: 'objectives' | 'benchmarks' | 'services' | 'results') {
+    if (which === 'objectives') collapsedObjectives = !collapsedObjectives;
     else if (which === 'benchmarks') collapsedBenchmarks = !collapsedBenchmarks;
     else if (which === 'services') collapsedServices = !collapsedServices;
     else collapsedResults = !collapsedResults;
@@ -183,8 +183,8 @@
   }
 
   /* ── Navigation ─────────────────────────────────────────────────────── */
-  function navigateToSkill(skillBoxId: string) {
-    dispatch('navigateSkill', skillBoxId);
+  function navigateToObjective(objectiveBoxId: string) {
+    dispatch('navigateObjective', objectiveBoxId);
   }
 
   function selectProfile(id: string) {
@@ -321,20 +321,20 @@
   <!-- Entity containers: 2×2 grid, collapsible -->
   <div class="rp-grid rp-grid-2">
 
-    <!-- Skills -->
+    <!-- Objectives -->
     <div class="rp-tile">
-      <button class="rp-tile-header" on:click={() => toggleCollapse('skills')} aria-expanded={!collapsedSkills}>
-        <span class="rp-tile-title">Skills{#if profileContributions.submittedSkills.length} ({profileContributions.submittedSkills.length}){/if}</span>
-        <svg class="rp-chevron" class:rp-chevron-open={!collapsedSkills} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+      <button class="rp-tile-header" on:click={() => toggleCollapse('objectives')} aria-expanded={!collapsedObjectives}>
+        <span class="rp-tile-title">Objectives{#if profileContributions.submittedObjectives.length} ({profileContributions.submittedObjectives.length}){/if}</span>
+        <svg class="rp-chevron" class:rp-chevron-open={!collapsedObjectives} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
           <polyline points="6 9 12 15 18 9"/>
         </svg>
       </button>
-      {#if !collapsedSkills}
-        {#if profileContributions.submittedSkills.length}
+      {#if !collapsedObjectives}
+        {#if profileContributions.submittedObjectives.length}
           <ul class="rp-list">
-            {#each profileContributions.submittedSkills as s (s.boxId)}
+            {#each profileContributions.submittedObjectives as s (s.boxId)}
               <li>
-                <button class="rp-list-row rp-list-clickable" on:click={() => navigateToSkill(s.boxId)} title={s.name}>
+                <button class="rp-list-row rp-list-clickable" on:click={() => navigateToObjective(s.boxId)} title={s.name}>
                   <span class="rp-list-primary">{s.name || shortId(s.boxId)}</span>
                   <span class="rp-list-meta">{formatReputation(s.reputation ?? 0)}</span>
                 </button>
@@ -342,7 +342,7 @@
             {/each}
           </ul>
         {:else}
-          <span class="rp-empty">No skills yet</span>
+          <span class="rp-empty">No objectives yet</span>
         {/if}
       {/if}
     </div>
@@ -358,9 +358,9 @@
       {#if !collapsedBenchmarks}
         {#if profileContributions.benchmarks.length}
           <ul class="rp-list">
-            {#each profileContributions.benchmarks as { skill: s, benchmark: b } (b.id)}
+            {#each profileContributions.benchmarks as { objective: s, benchmark: b } (b.id)}
               <li>
-                <button class="rp-list-row rp-list-clickable" on:click={() => navigateToSkill(s.boxId)} title={b.name}>
+                <button class="rp-list-row rp-list-clickable" on:click={() => navigateToObjective(s.boxId)} title={b.name}>
                   <span class="rp-list-primary">{b.name || shortId(b.id)}</span>
                   <span class="rp-list-context">on {s.name}</span>
                   <span class="rp-list-meta">{formatReputation(b.reputation ?? 0)}</span>
@@ -385,9 +385,9 @@
       {#if !collapsedServices}
         {#if profileContributions.coverages.length}
           <ul class="rp-list">
-            {#each profileContributions.coverages as { skill: s, coverage: c } (c.boxId)}
+            {#each profileContributions.coverages as { objective: s, coverage: c } (c.boxId)}
               <li>
-                <button class="rp-list-row rp-list-clickable" on:click={() => navigateToSkill(s.boxId)} title={s.name}>
+                <button class="rp-list-row rp-list-clickable" on:click={() => navigateToObjective(s.boxId)} title={s.name}>
                   <span class="rp-list-primary">{s.name}</span>
                   <span class="rp-list-context">{shortId(c.serviceId || c.boxId)}</span>
                   <span class="rp-list-meta">{formatReputation(c.reputation ?? 0)}</span>
@@ -412,9 +412,9 @@
       {#if !collapsedResults}
         {#if profileContributions.results.length}
           <ul class="rp-list">
-            {#each profileContributions.results as { skill: s, benchmark: b, result: r } (r.id)}
+            {#each profileContributions.results as { objective: s, benchmark: b, result: r } (r.id)}
               <li>
-                <button class="rp-list-row rp-list-clickable" on:click={() => navigateToSkill(s.boxId)} title={b.name}>
+                <button class="rp-list-row rp-list-clickable" on:click={() => navigateToObjective(s.boxId)} title={b.name}>
                   <span class="rp-list-primary">{b.name}</span>
                   <span class="rp-list-context">{shortId(r.serviceId || r.id)}</span>
                   <span class="rp-list-meta">{formatReputation(r.reputation ?? 0)}</span>

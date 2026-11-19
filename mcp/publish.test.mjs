@@ -56,7 +56,7 @@ describe('fetchMainBox', () => {
 
   it('shapes an explorer box into the RPBox create_opinion expects', async () => {
     const boxId = 'a'.repeat(64);
-    const typeNftId = 'ffce59c01b9c0c245005f9c2daf817607e912a3ececd5f61aaba48d30230f60c';
+    const typeNftId = 'd'.repeat(64);
     const reputationTokenId = 'b'.repeat(64);
 
     globalThis.fetch = vi.fn(async (url) => {

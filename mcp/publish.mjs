@@ -1,8 +1,8 @@
 /**
- * Celaut Skills MCP — publish (state-mutating) surface.
+ * Celaut Registry MCP — publish (state-mutating) surface.
  *
  * Unlike the read-only tools in `server.mjs`, these create on-chain reputation
- * opinions (Skill / Coverage / Benchmark / Result). The Type NFT ids come from
+ * opinions (Objective / Coverage / Benchmark / Result). The Type NFT ids come from
  * the same registry core the read tools use (`src/lib/registry/core.mjs`), so
  * reads and writes can never drift apart.
  *
@@ -21,7 +21,7 @@
  */
 
 import {
-  SKILL_TYPE_ID,
+  OBJECTIVE_TYPE_ID,
   COVERAGE_TYPE_ID,
   BENCHMARK_TYPE_ID,
   RESULT_TYPE_ID,
@@ -133,6 +133,9 @@ function describeResult(result) {
 }
 
 async function publishOpinion(typeNftId, objectPointer, content, mainBoxId, tokenAmount) {
+  if (!/^[0-9a-fA-F]{4,}$/.test(typeNftId)) {
+    throw new Error('Type NFT id is still a placeholder; mint the Objective Type NFT and set OBJECTIVE_TYPE_ID in src/lib/registry/core.mjs');
+  }
   const signer = makeSigner();
   const main_box = await fetchMainBox(mainBoxId);
   const result = await create_opinion_with_signer(
@@ -151,17 +154,17 @@ async function publishOpinion(typeNftId, objectPointer, content, mainBoxId, toke
 
 // ── The four uploads (content shapes mirror src/lib/ergoProvider.ts) ─────────
 
-export async function createSkill(input) {
+export async function createObjective(input) {
   return publishOpinion(
-    SKILL_TYPE_ID,
-    '', // a skill does not point at another entity
+    OBJECTIVE_TYPE_ID,
+    '', // an objective does not point at another entity
     {
       name: input.name,
       prose: input.prose,
       formal: input.formal ?? '',
       tags: input.tags ?? [],
       domain: input.domain ?? '',
-      extended_skill_boxes: input.extendedSkillBoxIds ?? [],
+      extended_objective_boxes: input.extendedObjectiveBoxIds ?? [],
       source_hash: input.sourceHash ?? null
     },
     input.mainBoxId,
@@ -172,9 +175,9 @@ export async function createSkill(input) {
 export async function createCoverage(input) {
   return publishOpinion(
     COVERAGE_TYPE_ID,
-    input.skillBoxId,
+    input.objectiveBoxId,
     {
-      skill_box_id: input.skillBoxId,
+      objective_box_id: input.objectiveBoxId,
       service_id: input.serviceId ?? null
     },
     input.mainBoxId,
@@ -185,9 +188,9 @@ export async function createCoverage(input) {
 export async function createBenchmark(input) {
   return publishOpinion(
     BENCHMARK_TYPE_ID,
-    input.skillBoxId,
+    input.objectiveBoxId,
     {
-      skill_box_id: input.skillBoxId,
+      objective_box_id: input.objectiveBoxId,
       name: input.name,
       description: input.description ?? '',
       case_descriptors: input.caseDescriptors ?? [],

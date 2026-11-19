@@ -3,12 +3,12 @@
    * ?service=<serviceId|boxId> — Dedicated service view.
    *
    * Shows: sources (ServiceSourceCard), structured service data with resolved
-   * network refs, metadata, associated skills, and a ForumSidebar entry-point.
+   * network refs, metadata, associated objectives, and a ForumSidebar entry-point.
    */
   import { onMount, createEventDispatcher } from 'svelte';
   import { loadServiceData, loadServiceMetadata, loadStrictDefinition, formatServiceId } from '$lib/api';
   import type { ServiceData, ServiceMetadata } from '$lib/types';
-  import type { Skill } from '$lib/types';
+  import type { Objective } from '$lib/types';
   import type { StrictDefinitionBox } from '$lib/types';
   import { toasts } from './toastStore';
   import { openForum } from './forumSidebar';
@@ -18,9 +18,9 @@
   import ServiceInfoCard from './ServiceInfoCard.svelte';
 
   export let serviceId: string = '';
-  export let skills: Skill[] = [];
+  export let objectives: Objective[] = [];
 
-  const dispatch = createEventDispatcher<{ back: void; navigateSkill: string }>();
+  const dispatch = createEventDispatcher<{ back: void; navigateObjective: string }>();
 
   // ── State ────────────────────────────────────────────────────────────────────
   let metadata: ServiceMetadata[] = [];
@@ -50,7 +50,7 @@
     }
   }
 
-  $: associatedSkills = skills.filter(s =>
+  $: associatedObjectives = objectives.filter(s =>
     s.coverages.some(c => c.serviceId === serviceId)
   );
 
@@ -136,19 +136,19 @@
         <ServiceSourceCard {serviceId} compact={false} />
       </div>
 
-      <!-- Right column: associated skills -->
+      <!-- Right column: associated objectives -->
       <aside class="sp-sidebar">
         <div class="sp-card">
-          <h2 class="sp-section-title">Skills covered</h2>
-          {#if associatedSkills.length === 0}
-            <p class="sp-empty-aside">No skills found for this service.</p>
+          <h2 class="sp-section-title">Objectives covered</h2>
+          {#if associatedObjectives.length === 0}
+            <p class="sp-empty-aside">No objectives found for this service.</p>
           {:else}
-            <ul class="sp-skill-list">
-              {#each associatedSkills as skill}
+            <ul class="sp-objective-list">
+              {#each associatedObjectives as objective}
                 <li>
-                  <button class="sp-skill-btn" type="button" on:click={() => dispatch('navigateSkill', skill.boxId)}>
-                    <span class="sp-skill-name">{skill.name}</span>
-                    <span class="sp-skill-domain">{skill.domain}</span>
+                  <button class="sp-objective-btn" type="button" on:click={() => dispatch('navigateObjective', objective.boxId)}>
+                    <span class="sp-objective-name">{objective.name}</span>
+                    <span class="sp-objective-domain">{objective.domain}</span>
                   </button>
                 </li>
               {/each}
@@ -323,8 +323,8 @@
   .sp-network-unresolved { font-size: 0.75rem; color: hsl(var(--muted-foreground)); }
 
   .sp-empty-aside { font-size: 0.82rem; color: hsl(var(--muted-foreground)); }
-  .sp-skill-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
-  .sp-skill-btn {
+  .sp-objective-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+  .sp-objective-btn {
     width: 100%;
     text-align: left;
     padding: 0.45rem 0.65rem;
@@ -336,7 +336,7 @@
     flex-direction: column;
     gap: 0.1rem;
   }
-  .sp-skill-btn:hover { background: hsl(var(--muted) / 0.3); }
-  .sp-skill-name { font-size: 0.85rem; font-weight: 700; }
-  .sp-skill-domain { font-size: 0.72rem; color: hsl(var(--muted-foreground)); }
+  .sp-objective-btn:hover { background: hsl(var(--muted) / 0.3); }
+  .sp-objective-name { font-size: 0.85rem; font-weight: 700; }
+  .sp-objective-domain { font-size: 0.72rem; color: hsl(var(--muted-foreground)); }
 </style>

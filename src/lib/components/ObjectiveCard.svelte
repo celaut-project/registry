@@ -10,7 +10,7 @@
   /**
    * Progressive disclosure: secondary metadata (service/benchmark/result
    * counters, reputation / ERG stake, submitter, duplicate flag) is no longer
-   * shown on the search card — it now lives on the skill detail view. The ERG
+   * shown on the search card — it now lives on the objective detail view. The ERG
    * reputation stake in particular was removed here because users misread it as
    * a price. Retained purely for parent call-site compatibility.
    */
@@ -29,8 +29,8 @@
 </script>
 
 <button
-  class="skill-card"
-  class:skill-card-visible={visible}
+  class="objective-card"
+  class:objective-card-visible={visible}
   on:click
 >
   <div class="card-inner">
@@ -56,7 +56,7 @@
 </button>
 
 <style lang="postcss">
-  .skill-card {
+  .objective-card {
     @apply relative flex flex-col rounded-xl border text-left cursor-pointer overflow-hidden;
     background: hsl(var(--card));
     border-color: hsl(var(--border));
@@ -65,13 +65,13 @@
     transform: translateY(16px);
   }
 
-  .skill-card-visible {
+  .objective-card-visible {
     opacity: 1;
     transform: translateY(0);
     transition: opacity 0.4s ease, transform 0.4s ease, border-color 0.2s ease, box-shadow 0.2s ease;
   }
 
-  .skill-card:hover {
+  .objective-card:hover {
     border-color: hsl(var(--foreground) / 0.2);
     box-shadow: 0 2px 8px hsl(var(--foreground) / 0.06);
   }

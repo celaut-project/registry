@@ -1,9 +1,9 @@
 /**
- * Core domain types for Celaut Skills — decentralized AI problem registry on Ergo.
+ * Core domain types for Celaut Registry — decentralized AI problem registry on Ergo.
  *
  * Hierarchy:
- *   Skill → Benchmark (defines HOW to measure) → Result (actual measurement)
- *          → Coverage (which services claim to solve this skill)
+ *   Objective → Benchmark (defines HOW to measure) → Result (actual measurement)
+ *          → Coverage (which services claim to solve this objective)
  *
  * Note (per Josemi 2026-06-10):
  *  - Entities do NOT carry an `author` property. The author of every element
@@ -14,12 +14,12 @@
  *    by the `<Forum topic_id={...}>` component using the entity's own id.
  */
 
-/** A Skill represents a registered AI problem/capability on-chain. */
+/** An Objective represents a registered AI problem on-chain. */
 /*
 Type NFT definition:
-An objective declaration of a computational problem or target task. It acts as an abstract capability marker that isolates the structural definition of the problem itself, maintaining absolute independence from any specific execution logic, implementation strategies, communication interfaces, or application-layer protocols.
+An objective declaration of a computational problem or target task. It acts as an abstract problem marker that isolates the structural definition of the problem itself, maintaining absolute independence from any specific execution logic, implementation strategies, communication interfaces, or application-layer protocols.
 */
-export interface Skill {
+export interface Objective {
   boxId: string;
   profileId: string;
   name: string;
@@ -27,7 +27,7 @@ export interface Skill {
   formal: string;
   tags: string[];
   domain: string;
-  extendedSkillBoxIds: string[];
+  extendedObjectiveBoxIds: string[];
   coverages: Coverage[];
   benchmarks: Benchmark[];
   resultCount: number;
@@ -35,36 +35,36 @@ export interface Skill {
   /** Blake2b256 hash of off-chain source file */
   sourceHash?: string;
   /**
-   * Block height at which the skill box was created. Used to canonically order
-   * a skill pair (newer vs older) when building a relationship topic id, so the
-   * same pair always resolves to the same `{skill_nueva}_{skill_antigua}` topic
+   * Block height at which the objective box was created. Used to canonically order
+   * an objective pair (newer vs older) when building a relationship topic id, so the
+   * same pair always resolves to the same `{newer_objective}_{older_objective}` topic
    * regardless of which side you open the discussion from.
    */
   creationHeight?: number;
   /**
-   * Internal flag set once the provider has hydrated this skill's heavy
+   * Internal flag set once the provider has hydrated this objective's heavy
    * relations (coverages, benchmarks, per-benchmark results). Used to make
-   * lazy hydration idempotent — see ErgoDataProvider.hydrateSkill.
+   * lazy hydration idempotent — see ErgoDataProvider.hydrateObjective.
    */
   __hydrated?: boolean;
 }
 
-/** Payload used to create a new Skill. */
-export interface SkillCreationInput {
+/** Payload used to create a new Objective. */
+export interface ObjectiveCreationInput {
   name: string;
   prose: string;
   formal: string;
   tags: string[];
   domain: string;
-  extendedSkillBoxIds: string[];
+  extendedObjectiveBoxIds: string[];
   /** Blake2b256 hash of off-chain source file */
   sourceHash?: string;
-  /** Reputation token supply to mint when creating the skill profile. */
+  /** Reputation token supply to mint when creating the objective profile. */
   tokenAmount?: number;
   mainBox?: unknown;
 }
 
-/** A Coverage links a service (AI agent) to a Skill it can address. */
+/** A Coverage links a service (AI agent) to an Objective it can address. */
 /*
 Type NFT definition:
 An explicit assertion declaring that a specific computational service is capable of addressing a designated computational problem. It establishes a referential linkage between a service identifier and a target abstract capability, serving as an unverified claim of functionality.
@@ -74,22 +74,22 @@ export interface Coverage {
   profileId: string;
   serviceId?: string;
   /**
-   * When set, this coverage targets a Benchmark instead of the skill directly —
-   * a suggestion that the named service tests the skill following that
-   * benchmark's specification. Absent for plain skill-level coverages.
+   * When set, this coverage targets a Benchmark instead of the objective directly —
+   * a suggestion that the named service tests the objective following that
+   * benchmark's specification. Absent for plain objective-level coverages.
    */
   benchmarkId?: string;
-  /** Box id of the extended skill that owns this coverage, when it was inherited. */
+  /** Box id of the extended objective that owns this coverage, when it was inherited. */
   inheritedFrom?: string;
   reputation?: number;
 }
 
 /** Payload used to create a new Coverage opinion. */
 export interface CoverageCreationInput {
-  skillBoxId: string;
+  objectiveBoxId: string;
   /**
    * Target benchmark id. When provided, the coverage points at the benchmark
-   * (object pointer = benchmarkId) rather than the skill box.
+   * (object pointer = benchmarkId) rather than the objective box.
    */
   benchmarkId?: string;
   serviceId?: string;
@@ -119,7 +119,7 @@ export interface CaseExecutionData {
 
 /**
  * A Benchmark defines the structure/criteria for how results
- * are evaluated for a given skill — metrics, units, pass thresholds.
+ * are evaluated for a given objective — metrics, units, pass thresholds.
  */
 /*
 Type NFT definition:
@@ -128,7 +128,7 @@ A structured specification of an evaluation space designed to analyze computatio
 export interface Benchmark {
   id: string;
   profileId: string;
-  skillBoxId: string;
+  objectiveBoxId: string;
   name: string;
   description: string;
   caseDescriptors: Descriptor[];
@@ -136,10 +136,10 @@ export interface Benchmark {
   results: Result[];
   /**
    * Coverages that target this benchmark — services suggested to test the
-   * skill following this benchmark's spec. Loaded lazily; defaults to [].
+   * objective following this benchmark's spec. Loaded lazily; defaults to [].
    */
   coverages?: Coverage[];
-  /** Box id of the extended skill that owns this benchmark, when it was inherited. */
+  /** Box id of the extended objective that owns this benchmark, when it was inherited. */
   inheritedFrom?: string;
   reputation?: number;
   /** Blake2b256 hash of off-chain source file */
@@ -148,7 +148,7 @@ export interface Benchmark {
 
 /** Payload used to create a new Benchmark opinion. */
 export interface BenchmarkCreationInput {
-  skillBoxId: string;
+  objectiveBoxId: string;
   name: string;
   description: string;
   caseDescriptors: Descriptor[];
@@ -162,7 +162,7 @@ export interface BenchmarkCreationInput {
 
 /**
  * A Result is an individual benchmark result submitted on-chain,
- * evaluating a service's performance against a Skill's Benchmark.
+ * evaluating a service's performance against an Objective's Benchmark.
  */
 /*
 Type NFT definition:

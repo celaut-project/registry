@@ -3,14 +3,14 @@
   import * as Dialog from "$lib/components/ui/dialog";
   import { Button } from "$lib/components/ui/button";
 
-  export let title: string = "Know Your Assumptions — Unstoppable Skills";
+  export let title: string = "Know Your Assumptions — Celaut Registry";
   export let closeBtnText: string = "I understand and I agree";
   export let autoOpen = false;
 
   let showModal = false;
   let isButtonEnabled = false;
   let contentDiv: HTMLDivElement;
-  const KYA_ACCEPTED_KEY = "acceptedSkillsKYA";
+  const KYA_ACCEPTED_KEY = "acceptedObjectivesKYA";
 
   function hasAcceptedKya() {
     if (!browser) return false;
@@ -76,7 +76,7 @@
     >
       <p class="mb-3">
         This document describes the key assumptions underlying the design, implementation, and
-        operation of the Unstoppable Skills registry. Skills are AI-agent capabilities published
+        operation of the Celaut Registry. Objectives are AI-agent problems published
         on-chain as Reputation Boxes on the Ergo blockchain, and their reputation is the total ERG
         irreversibly burned (sacrificed) against a profile. Please read before connecting your
         wallet and interacting with the registry.
@@ -85,9 +85,9 @@
       <h3 class="font-bold text-md mt-4 mb-2">Fundamental Assumptions</h3>
       <ul class="list-disc ml-6 space-y-2">
         <li>
-          <strong>On-chain, permissionless registry:</strong> Skills are registered as Reputation
+          <strong>On-chain, permissionless registry:</strong> Objectives are registered as Reputation
           Boxes on the Ergo blockchain. Publishing is open and permissionless — there is no central
-          authority that reviews, curates, approves, or removes skills. Anyone can publish anything.
+          authority that reviews, curates, approves, or removes objectives. Anyone can publish anything.
         </li>
         <li>
           <strong>Reputation = burned ERG (Proof of Sacrifice):</strong> A profile's reputation is
@@ -96,17 +96,17 @@
           <strong>signal, not a guarantee</strong> of correctness, safety, or quality.
         </li>
         <li>
-          <strong>Reputation does not endorse a skill:</strong> A high score reflects ERG sacrificed
-          and accumulated opinions, not an audit. A skill may be inaccurate, incomplete, malicious,
+          <strong>Reputation does not endorse an objective:</strong> A high score reflects ERG sacrificed
+          and accumulated opinions, not an audit. An objective may be inaccurate, incomplete, malicious,
           or non-functional regardless of how much reputation it carries.
         </li>
         <li>
-          <strong>Author-supplied, unverified content:</strong> Skill names, prose, formal
+          <strong>Author-supplied, unverified content:</strong> Objective names, prose, formal
           definitions, tags, coverages, benchmarks, and relationships are provided by their authors
           and are not independently verified by this platform.
         </li>
         <li>
-          <strong>Data sourced from public explorers/nodes:</strong> Skill listings and reputation
+          <strong>Data sourced from public explorers/nodes:</strong> Objective listings and reputation
           are reconstructed from public Ergo explorer and node APIs. Availability, completeness, and
           timeliness depend on those third-party services and on chain state.
         </li>
@@ -120,13 +120,13 @@
       <h3 class="font-bold text-md mt-4 mb-2">Assumptions to Validate and Potential Risks</h3>
       <ul class="list-disc ml-6 space-y-2">
         <li>Whether burned-ERG reputation remains a meaningful, hard-to-game signal as the registry grows.</li>
-        <li>The accuracy and freshness of explorer/node data used to render skills and scores.</li>
-        <li>The real safety of executing or relying on any third-party skill or linked service.</li>
+        <li>The accuracy and freshness of explorer/node data used to render objectives and scores.</li>
+        <li>The real safety of executing or relying on any third-party objective or linked service.</li>
         <li>The resilience of the reputation and relationship model against spam, sybil, and gaming attempts.</li>
         <li>The security of the underlying smart contracts and of the wallet integration.</li>
       </ul>
 
-      <p class="font-bold mt-4">By connecting your wallet and using Unstoppable Skills, you acknowledge and agree that:</p>
+      <p class="font-bold mt-4">By connecting your wallet and using Celaut Registry, you acknowledge and agree that:</p>
       <ul class="list-disc ml-6 space-y-2">
         <li>You use the platform at your own risk.</li>
         <li>
@@ -141,8 +141,8 @@
         <li>All blockchain interactions are irreversible; transactions cannot be undone once confirmed.</li>
         <li>You are solely responsible for the security of your keys, wallet, and any digital assets.</li>
         <li>
-          Skills are published by third parties and are not verified by this platform; you are
-          responsible for evaluating any skill before using, executing, or depending on it.
+          Objectives are published by third parties and are not verified by this platform; you are
+          responsible for evaluating any objective before using, executing, or depending on it.
         </li>
         <li>There is no guarantee against errors, bugs, or the loss of data or digital assets.</li>
         <li>Reputation scores are informational only and are not financial, professional, or safety advice.</li>
@@ -150,7 +150,7 @@
 
       <p class="italic mt-6">
         Do you understand and agree to these assumptions and the associated risks of using the
-        Unstoppable Skills registry?
+        Celaut Registry?
       </p>
     </div>
 

@@ -3,7 +3,7 @@ import { writable } from 'svelte/store';
 /**
  * Single side-rail Forum panel state. Per Josemi 2026-06-16: every Forum
  * usage funnels through one full-height chat panel; the panel title surfaces
- * which topic is being discussed (skill general, a specific benchmark, a
+ * which topic is being discussed (objective general, a specific benchmark, a
  * specific result, a specific coverage, etc.).
  */
 export interface ForumSidebarState {
@@ -22,9 +22,9 @@ export const forumSidebar = writable<ForumSidebarState>(initial);
 
 /**
  * Open the panel for a given topic id with a human title shown in the header.
- * Title is pre-formatted at the call site — each section (skill, benchmark,
+ * Title is pre-formatted at the call site — each section (objective, benchmark,
  * result, coverage) knows its own context better than this generic store would,
- * and keeping it stringly-typed avoids dragging skill/benchmark imports into
+ * and keeping it stringly-typed avoids dragging objective/benchmark imports into
  * the store layer.
  */
 export function openForum(topicId: string, title: string): void {

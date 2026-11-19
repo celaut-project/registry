@@ -1,19 +1,19 @@
 /**
- * Share utilities for the "Share Skill" modal.
+ * Share utilities for the "Share Objective" modal.
  *
- * Generates platform-specific share messages and URLs for a Skill (Twitter/X,
+ * Generates platform-specific share messages and URLs for an Objective (Twitter/X,
  * Telegram, LinkedIn) plus a copy-to-clipboard fallback. Adapted from the
- * game-of-prompts share-utils, retargeted at skills and this app's deep-link
- * scheme (`?skill=<boxId>`).
+ * game-of-prompts share-utils, retargeted at objectives and this app's deep-link
+ * scheme (`?objective=<boxId>`).
  */
 
 export type SharePlatform = 'twitter' | 'telegram' | 'linkedin';
 
 export interface ShareConfig {
-  /** Human-readable skill name. */
-  skillName: string;
-  /** Skill box id — used to build a deep link to the skill. */
-  skillBoxId: string;
+  /** Human-readable objective name. */
+  objectiveName: string;
+  /** Objective box id — used to build a deep link to the objective. */
+  objectiveBoxId: string;
   /** Optional prose/description, trimmed into the message. */
   description?: string;
   /** Override the base URL (defaults to the current origin). */
@@ -25,43 +25,43 @@ function defaultBaseUrl(): string {
   return typeof window !== 'undefined' ? window.location.origin : '';
 }
 
-/** Build a deep link to a skill: `<origin>?skill=<boxId>`. */
-export function getSkillUrl(skillBoxId: string, baseUrl: string = defaultBaseUrl()): string {
-  return `${baseUrl}?skill=${encodeURIComponent(skillBoxId)}`;
+/** Build a deep link to an objective: `<origin>?objective=<boxId>`. */
+export function getObjectiveUrl(objectiveBoxId: string, baseUrl: string = defaultBaseUrl()): string {
+  return `${baseUrl}?objective=${encodeURIComponent(objectiveBoxId)}`;
 }
 
-/** Compose the standardized share message for a skill. */
-function generateShareMessage(skillName: string, description?: string): string {
+/** Compose the standardized share message for an objective. */
+function generateShareMessage(objectiveName: string, description?: string): string {
   const cleaned = description
     ? description.substring(0, 100).replace(/[^\w\s\-.]/g, '').trim()
     : '';
-  return `Check out the "${skillName}" skill on Unstoppable Skills 🤖${cleaned ? `\n\n${cleaned}` : ''}\n\n#UnstoppableSkills #ErgoBlockchain`;
+  return `Check out the "${objectiveName}" objective on Celaut Registry 🤖${cleaned ? `\n\n${cleaned}` : ''}\n\n#CelautRegistry #ErgoBlockchain`;
 }
 
 /** Twitter/X web-intent share URL. */
 export function getTwitterShareUrl(config: ShareConfig): string {
-  const message = generateShareMessage(config.skillName, config.description);
-  const url = getSkillUrl(config.skillBoxId, config.baseUrl);
+  const message = generateShareMessage(config.objectiveName, config.description);
+  const url = getObjectiveUrl(config.objectiveBoxId, config.baseUrl);
   const params = new URLSearchParams({ text: `${message}\n\n${url}` });
   return `https://twitter.com/intent/tweet?${params.toString()}`;
 }
 
 /** Telegram share URL with pre-filled text. */
 export function getTelegramShareUrl(config: ShareConfig): string {
-  const message = generateShareMessage(config.skillName, config.description);
-  const url = getSkillUrl(config.skillBoxId, config.baseUrl);
+  const message = generateShareMessage(config.objectiveName, config.description);
+  const url = getObjectiveUrl(config.objectiveBoxId, config.baseUrl);
   return `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(message)}`;
 }
 
 /** LinkedIn offsite share URL. */
 export function getLinkedInShareUrl(config: ShareConfig): string {
-  const url = getSkillUrl(config.skillBoxId, config.baseUrl);
-  const message = generateShareMessage(config.skillName, config.description);
+  const url = getObjectiveUrl(config.objectiveBoxId, config.baseUrl);
+  const message = generateShareMessage(config.objectiveName, config.description);
   const params = new URLSearchParams({
     url,
-    title: config.skillName,
+    title: config.objectiveName,
     summary: message.substring(0, 300),
-    source: 'UnstoppableSkills'
+    source: 'CelautRegistry'
   });
   return `https://www.linkedin.com/sharing/share-offsite/?${params.toString()}`;
 }
@@ -82,8 +82,8 @@ export function getShareUrl(platform: SharePlatform, config: ShareConfig): strin
 
 /** Plain shareable text for copy-to-clipboard (message + deep link). */
 export function getShareText(config: ShareConfig): string {
-  const message = generateShareMessage(config.skillName, config.description);
-  const url = getSkillUrl(config.skillBoxId, config.baseUrl);
+  const message = generateShareMessage(config.objectiveName, config.description);
+  const url = getObjectiveUrl(config.objectiveBoxId, config.baseUrl);
   return `${message}\n\n${url}`;
 }
 

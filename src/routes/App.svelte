@@ -10,7 +10,7 @@
   import { FileCard, FileSourceCreation, fetchFileSourcesByHash } from "source-application";
   import type { FileSource } from "source-application";
   import { writable } from "svelte/store";
-  import SkillCard from "$lib/components/SkillCard.svelte";
+  import ObjectiveCard from "$lib/components/ObjectiveCard.svelte";
   import SkeletonCard from "$lib/components/SkeletonCard.svelte";
   import FooterComponent from "$lib/components/Footer.svelte";
 
@@ -22,7 +22,7 @@
   import { serviceFilters, serviceInfoRegistry, serviceMatches, resetServiceInfo } from "$lib/serviceFilters";
   import SortDropdown from "$lib/components/celaut/SortDropdown.svelte";
   import HowItWorks from "$lib/components/celaut/HowItWorks.svelte";
-  import SkillLeaderboard from "$lib/components/celaut/SkillLeaderboard.svelte";
+  import ObjectiveLeaderboard from "$lib/components/celaut/ObjectiveLeaderboard.svelte";
   import InfoTip from "$lib/components/celaut/InfoTip.svelte";
   import ExplorerLink from "$lib/components/celaut/ExplorerLink.svelte";
   import ProfileAvatar from "$lib/components/celaut/ProfileAvatar.svelte";
@@ -33,7 +33,7 @@
   import FormalSpecEditor from "$lib/components/celaut/FormalSpecEditor.svelte";
   import ForumSidebar from "$lib/components/celaut/ForumSidebar.svelte";
   import BackButton from "$lib/components/celaut/BackButton.svelte";
-  import SkillDetailView from "$lib/components/celaut/SkillDetailView.svelte";
+  import ObjectiveDetailView from "$lib/components/celaut/ObjectiveDetailView.svelte";
   import { openForum } from "$lib/components/celaut/forumSidebar";
   import { toasts } from "$lib/components/celaut/toastStore";
   import { portal } from "$lib/actions/portal";
@@ -41,11 +41,11 @@
   // ── API & Types ────────────────────────────────────────────────────────────
   import { formatServiceId, formatSourceHash, EXPLORER_API } from "$lib/api";
   import { fetchProfileById, type ReputationProof } from "reputation-system";
-  import { loadSkills as loadSkillsFromData, hydrateSkill as hydrateSkillFromData } from "$lib/data";
-  import { createSkill, createBenchmark as createBenchmarkEntity } from "$lib/data";
-  import type { Skill, Coverage, Benchmark, Result } from "$lib/types";
+  import { loadObjectives as loadObjectivesFromData, hydrateObjective as hydrateObjectiveFromData } from "$lib/data";
+  import { createObjective, createBenchmark as createBenchmarkEntity } from "$lib/data";
+  import type { Objective, Coverage, Benchmark, Result } from "$lib/types";
   import { categoryIcon, categoryColor } from "$lib/categoryIcons";
-  import { calculateSkillReputation, calculateBenchmarkReputation, calculateResultReputation, formatReputation, NANOERG_PER_ERG } from "$lib/reputation";
+  import { calculateObjectiveReputation, calculateBenchmarkReputation, calculateResultReputation, formatReputation, NANOERG_PER_ERG } from "$lib/reputation";
   import {
     buildComparisonTensor,
     aggregateMetricForService,
@@ -61,15 +61,15 @@
   import NetworkPage from "$lib/components/celaut/NetworkPage.svelte";
   import ServicePage from "$lib/components/celaut/ServicePage.svelte";
 
-  // ── Reputation threshold for hiding related skills ─────────────────────────
-  // If skill A references skill B via extendedSkillBoxIds, and A's reputation >= this
+  // ── Reputation threshold for hiding related objectives ─────────────────────────
+  // If objective A references objective B via extendedObjectiveBoxIds, and A's reputation >= this
   // threshold, then B is hidden from the main gallery (still accessible from A's detail).
-  // Default 0 = any relationship hides the related skill.
+  // Default 0 = any relationship hides the related objective.
   const REPUTATION_THRESHOLD = 0;
 
   // ── State ──────────────────────────────────────────────────────────────────
-  let skills: Skill[] = [];
-  let selectedSkill: Skill | null = null;
+  let objectives: Objective[] = [];
+  let selectedObjective: Objective | null = null;
   let loading = true;
   let error: string | null = null;
   let searchQuery = "";
@@ -78,37 +78,37 @@
   // are gated on `hasQuery` so the initial page is search-first with no scroll.
   $: hasQuery = searchQuery.trim().length > 0;
 
-  // Lazy hydration: skills load lightweight (names/tags only). We hydrate the
-  // heavy relations (coverages/benchmarks/results) only for skills the user
+  // Lazy hydration: objectives load lightweight (names/tags only). We hydrate the
+  // heavy relations (coverages/benchmarks/results) only for objectives the user
   // actually surfaces via search or opens in detail.
   let hydratedBoxIds = new Set<string>();
-  async function ensureHydrated(list: Skill[]) {
+  async function ensureHydrated(list: Objective[]) {
     let changed = false;
     for (const s of list) {
       if (hydratedBoxIds.has(s.boxId)) continue;
       hydratedBoxIds.add(s.boxId);
       try {
-        await hydrateSkillFromData(s);
+        await hydrateObjectiveFromData(s);
         changed = true;
       } catch (e) {
-        // Leave this skill's coverage/benchmark/result counts at 0 rather than
+        // Leave this objective's coverage/benchmark/result counts at 0 rather than
         // blocking the gallery; a later interaction can retry.
       }
     }
     if (changed) {
-      skills = skills; // force Svelte reactivity after in-place hydration
-      // If the skill currently open in the detail view was just hydrated, its
-      // coverages/benchmarks arrays were replaced in place — but `selectedSkill`
+      objectives = objectives; // force Svelte reactivity after in-place hydration
+      // If the objective currently open in the detail view was just hydrated, its
+      // coverages/benchmarks arrays were replaced in place — but `selectedObjective`
       // still points at the same object reference, so the detail view's counters
-      // (`selectedSkill.benchmarks.length`) and lists would stay frozen on the
+      // (`selectedObjective.benchmarks.length`) and lists would stay frozen on the
       // pre-hydration (empty) snapshot. Reassign to publish the hydrated data so
       // the counter and its list always reflect the same, populated arrays.
-      if (selectedSkill && list.some((s) => s.boxId === selectedSkill!.boxId)) {
-        selectedSkill = selectedSkill;
+      if (selectedObjective && list.some((s) => s.boxId === selectedObjective!.boxId)) {
+        selectedObjective = selectedObjective;
       }
     }
   }
-  // Minimum-reputation gallery filter: hide skills whose aggregate reputation
+  // Minimum-reputation gallery filter: hide objectives whose aggregate reputation
   // falls below this threshold. 0 = show everything (default).
   let minReputation = 0;
   // Secondary filters (e.g. min-reputation) are collapsed behind a small
@@ -118,15 +118,15 @@
   // "" = no tab highlighted (used while the profile-detail view is open).
   let activeTab: "gallery" | "submit" | "profile" | "networks" | "howitworks" | "" = "gallery";
   let detailVisible = false;
-  // When the Submit tab is reached via "Modify Skill", remember the skill the
+  // When the Submit tab is reached via "Modify Objective", remember the objective the
   // user came from so we can offer a back button to its detail view (mirrors
   // the back-navigation the profile detail view has).
-  let returnToSkill: Skill | null = null;
-  // "Share Skill" modal (opened from the skill detail header).
+  let returnToObjective: Objective | null = null;
+  // "Share Objective" modal (opened from the objective detail header).
   let shareModalOpen = false;
-  // Deep-link target from `?skill=<boxId>`: resolved to a selected skill once
+  // Deep-link target from `?objective=<boxId>`: resolved to a selected objective once
   // the gallery has loaded (see the reactive block below).
-  let pendingSkillId: string | null = null;
+  let pendingObjectiveId: string | null = null;
 
   // ── Island header scroll behaviour ───────────────────────────────────────
   // Hide the floating header when scrolling down, reveal it when scrolling up
@@ -150,12 +150,12 @@
   let validationErrors: Record<string, string> = {};
   let enhancementsRef: SubmitFormEnhancements;
 
-  // Submit skill form
-  let newSkillName = "";
-  let newSkillProse = "";
-  let newSkillFormal = "";
-  let newSkillTags = "";
-  let newSkillDomain = "";
+  // Submit objective form
+  let newObjectiveName = "";
+  let newObjectiveProse = "";
+  let newObjectiveFormal = "";
+  let newObjectiveTags = "";
+  let newObjectiveDomain = "";
   let submitting = false;
   let submitTx: string | null = null;
   let submitError: string | null = null;
@@ -170,7 +170,7 @@
   let benchmarkDescriptors: { name: string; description: string }[] = [];
   let benchmarkSourceHash = "";
   let benchmarkSubmitting = false;
-  let relatedSkillBoxIds: string[] = [];
+  let relatedObjectiveBoxIds: string[] = [];
 
   function addBenchmarkMetric() {
     benchmarkMetrics = [...benchmarkMetrics, { name: "", description: "", higherIsBetter: true }];
@@ -204,7 +204,7 @@
   let newProfileSacrifice = "0";
   let newProfileSubmitting = false;
   // Source-application state
-  let skillSources: FileSource[] = [];
+  let objectiveSources: FileSource[] = [];
   let showFileSourceModal = false;
   let modalFileHash = "";
 
@@ -226,13 +226,13 @@
   function handleFileSourceAdded(txId: string) {
     toasts.info(`Source registered! Tx: ${txId.slice(0, 12)}…`);
     showFileSourceModal = false;
-    // Reload sources for the current skill
-    if (selectedSkill?.sourceHash) {
-      loadSkillSources(selectedSkill.sourceHash);
+    // Reload sources for the current objective
+    if (selectedObjective?.sourceHash) {
+      loadObjectiveSources(selectedObjective.sourceHash);
     }
   }
 
-  // Per-hash cache for source-application lookups. Selecting a skill, navigating
+  // Per-hash cache for source-application lookups. Selecting an objective, navigating
   // away, then returning shouldn't trigger another Explorer round-trip — the
   // source-application mapping is content-addressed by Blake2b256, so it never
   // changes for a given hash within a session.
@@ -246,48 +246,48 @@
     return fetched;
   }
 
-  async function loadSkillSources(hash: string) {
+  async function loadObjectiveSources(hash: string) {
     try {
-      skillSources = await fetchFileSourcesCached(hash);
+      objectiveSources = await fetchFileSourcesCached(hash);
     } catch {
-      skillSources = [];
+      objectiveSources = [];
     }
   }
 
-  // Reload sources when the selected skill changes. Gated on sourceHash because
-  // skills without a declared source can never resolve in source-application.
-  $: if (selectedSkill?.sourceHash) {
-    loadSkillSources(selectedSkill.sourceHash);
+  // Reload sources when the selected objective changes. Gated on sourceHash because
+  // objectives without a declared source can never resolve in source-application.
+  $: if (selectedObjective?.sourceHash) {
+    loadObjectiveSources(selectedObjective.sourceHash);
   } else {
-    skillSources = [];
+    objectiveSources = [];
   }
 
-  // Compute reputation for selected skill — label is RELATIVE to all sibling
-  // skills, so we pass the full population (thresholds built once inside).
-  $: selectedSkillReputation = selectedSkill ? calculateSkillReputation(selectedSkill, skills) : null;
+  // Compute reputation for selected objective — label is RELATIVE to all sibling
+  // objectives, so we pass the full population (thresholds built once inside).
+  $: selectedObjectiveReputation = selectedObjective ? calculateObjectiveReputation(selectedObjective, objectives) : null;
 
-  // Reset the per-skill service-info registry + filters whenever the opened skill
-  // changes, so stale service data from a previous skill can't leak into the
+  // Reset the per-objective service-info registry + filters whenever the opened objective
+  // changes, so stale service data from a previous objective can't leak into the
   // coverage filters.
-  let lastServiceSkillId: string | null = null;
-  $: if ((selectedSkill?.boxId ?? null) !== lastServiceSkillId) {
-    lastServiceSkillId = selectedSkill?.boxId ?? null;
+  let lastServiceObjectiveId: string | null = null;
+  $: if ((selectedObjective?.boxId ?? null) !== lastServiceObjectiveId) {
+    lastServiceObjectiveId = selectedObjective?.boxId ?? null;
     resetServiceInfo();
   }
 
   // Category glyph for the detail title — swaps the old profile avatar for the
-  // skill's category icon (with its accent color), mirroring SkillDetail.svelte.
-  $: DetailCategoryIcon = categoryIcon(selectedSkill?.domain);
+  // objective's category icon (with its accent color), mirroring ObjectiveDetail.svelte.
+  $: DetailCategoryIcon = categoryIcon(selectedObjective?.domain);
 
   // ── Best service highlight ────────────────────────────────────────────────
-  // Surfaces the "best" service for a skill as a prominent card with a download
+  // Surfaces the "best" service for an objective as a prominent card with a download
   // link when source-application has a binary registered for it. "Best" is the
   // Coverage whose serviceId scored highest across all benchmarks attached to
-  // the skill, weighted by each benchmark's own reputation (so a service that
+  // the objective, weighted by each benchmark's own reputation (so a service that
   // wins on a heavily-vouched benchmark beats one that wins on an obscure one).
 
-  // A skill's "recommended" service is ranked by COMPOSITE SCORE + REPUTATION.
-  // `selectedSkill.coverages` already merges direct coverage boxes AND
+  // An objective's "recommended" service is ranked by COMPOSITE SCORE + REPUTATION.
+  // `selectedObjective.coverages` already merges direct coverage boxes AND
   // result-derived services (see loadCoverages), so it is the full candidate
   // pool. Crucially we DON'T drop services that lack comparative benchmark data:
   // the comparison tensor's z-score composite is 0 for a lone/unscored service,
@@ -295,28 +295,28 @@
   // still surface — it's simply the single best candidate.
 
   /**
-   * Recommended service for the selected skill. Score = tensor composite score
+   * Recommended service for the selected objective. Score = tensor composite score
    * (0 when the service has no comparative data) + the service's own reputation.
-   * Highest score wins; a sole candidate always shows. Null only when the skill
+   * Highest score wins; a sole candidate always shows. Null only when the objective
    * has no service candidates at all.
    */
-  // Computed in the MARKUP (via `{#each [computeRecommendedService(selectedSkill)]}`),
-  // NOT a `$:` reactive. A skill's `coverages` get populated by in-place mutation
-  // after the skill is selected (notably on a `?skill=` deep link); that mutates
-  // the existing object without reassigning `selectedSkill` or `skills`, so no
+  // Computed in the MARKUP (via `{#each [computeRecommendedService(selectedObjective)]}`),
+  // NOT a `$:` reactive. An objective's `coverages` get populated by in-place mutation
+  // after the objective is selected (notably on a `?objective=` deep link); that mutates
+  // the existing object without reassigning `selectedObjective` or `objectives`, so no
   // reactive statement is ever invalidated and the card stayed permanently hidden.
   // Markup expressions re-evaluate on every render, so they always see the latest
   // coverages — the reliable place to derive this.
-  function computeRecommendedService(skill: Skill | null) {
-    if (!skill) return null;
-    const candidates = skill.coverages.filter((c) => c.serviceId);
+  function computeRecommendedService(objective: Objective | null) {
+    if (!objective) return null;
+    const candidates = objective.coverages.filter((c) => c.serviceId);
     if (!candidates.length) return null;
     // Rank by the SCORE.md global score (verified performance + reputation).
     // Wrapped defensively so sparse/edge-case data can't make the card vanish —
     // a sole result-derived service still surfaces (it's simply the top candidate).
     let scoreById = new Map<string, ServiceScore>();
     try {
-      scoreById = new Map(computeServiceScores(skill).map((s) => [s.serviceId, s]));
+      scoreById = new Map(computeServiceScores(objective).map((s) => [s.serviceId, s]));
     } catch {
       scoreById = new Map();
     }
@@ -355,27 +355,27 @@
     return pr;
   }
 
-  // ── Load skills from active provider ────────────────────────────────────────
-  async function loadSkills() {
+  // ── Load objectives from active provider ────────────────────────────────────────
+  async function loadObjectives() {
     loading = true;
     error = null;
     try {
-      skills = await loadSkillsFromData();
+      objectives = await loadObjectivesFromData();
     } catch (e: any) {
       // Live mode: surface the error instead of silently swapping in mock data.
       // Demo mode: errors here would mean the mockDb itself failed — also worth surfacing.
-      skills = [];
-      error = e?.message || "Failed to load skills.";
+      objectives = [];
+      error = e?.message || "Failed to load objectives.";
     } finally {
       loading = false;
     }
   }
 
-  async function refreshSkills(preserveSelectedBoxId: string | null = selectedSkill?.boxId ?? null) {
+  async function refreshObjectives(preserveSelectedBoxId: string | null = selectedObjective?.boxId ?? null) {
     const selectedBoxId = preserveSelectedBoxId;
-    await loadSkills();
+    await loadObjectives();
     if (selectedBoxId) {
-      selectedSkill = skills.find((skill) => skill.boxId === selectedBoxId) ?? selectedSkill;
+      selectedObjective = objectives.find((objective) => objective.boxId === selectedBoxId) ?? selectedObjective;
     }
   }
 
@@ -525,28 +525,28 @@
     }
   }
 
-  /** Navigate from a profile-card entity (skill/benchmark/service/result) to its skill page. */
-  function handleNavigateSkill(boxId: string) {
-    const skill = skills.find((s) => s.boxId === boxId);
+  /** Navigate from a profile-card entity (objective/benchmark/service/result) to its objective page. */
+  function handleNavigateObjective(boxId: string) {
+    const objective = objectives.find((s) => s.boxId === boxId);
     viewedProfileId.set(null);
     activeTab = "gallery";
-    if (skill) selectSkill(skill);
+    if (objective) selectObjective(objective);
   }
 
   // ── Tab navigation ────────────────────────────────────────────────────────
   // Classic header tabs: clicking a tab sets `activeTab` and swaps the main
   // content to that tab's view. Only the Gallery tab is itself a scroll page
-  // (search hero → skills grid → how-it-works); every other route is a plain
-  // tab. Any open overlay (skill/network/service/profile detail) is closed first.
+  // (search hero → objectives grid → how-it-works); every other route is a plain
+  // tab. Any open overlay (objective/network/service/profile detail) is closed first.
 
   function clearOverlays() {
-    selectedSkill = null;
-    returnToSkill = null;
+    selectedObjective = null;
+    returnToObjective = null;
     viewedProfileId.set(null);
     viewedNetworkId.set(null);
     viewedServiceId.set(null);
     networkPageReturn.set(null);
-    syncSkillParam(null);
+    syncObjectiveParam(null);
     if (browser) {
       const u = new URL(window.location.href);
       u.searchParams.delete("network");
@@ -568,9 +568,9 @@
   }
 
   // Hero search submit: the input already filters live via `searchQuery`, so the
-  // arrow/Enter simply scrolls the results (skills grid) into view.
+  // arrow/Enter simply scrolls the results (objectives grid) into view.
   function submitHeroSearch() {
-    if (browser) document.getElementById("skills-section")?.scrollIntoView({ behavior: "smooth" });
+    if (browser) document.getElementById("objectives-section")?.scrollIntoView({ behavior: "smooth" });
   }
 
   function openNewProfileModal() {
@@ -636,7 +636,7 @@
   $: {
     const _dm = $demoMode;
     if (browser && demoModeInitialized) {
-      loadSkills();
+      loadObjectives();
     }
     demoModeInitialized = true;
   }
@@ -649,8 +649,8 @@
     }
   }
 
-  // ── Filtered skills ────────────────────────────────────────────────────────
-  $: filtered = skills.filter(s => {
+  // ── Filtered objectives ────────────────────────────────────────────────────────
+  $: filtered = objectives.filter(s => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -662,12 +662,12 @@
   });
 
   // ── Category + Sort pipeline ───────────────────────────────────────────────
-  function filterByCategory(list: Skill[], category: string): Skill[] {
+  function filterByCategory(list: Objective[], category: string): Objective[] {
     if (category === "all") return list;
     return list.filter(s => s.domain.toLowerCase() === category.toLowerCase());
   }
 
-  function sortSkills(list: Skill[], sort: string): Skill[] {
+  function sortObjectives(list: Objective[], sort: string): Objective[] {
     const sorted = [...list];
     switch (sort) {
       case "name": return sorted.sort((a, b) => a.name.localeCompare(b.name));
@@ -678,22 +678,22 @@
     }
   }
 
-  // ── Compute which boxIds are subsumed by a higher-reputation skill ───────
-  // A skill B is hidden if another skill A references B in extendedSkillBoxIds
+  // ── Compute which boxIds are subsumed by a higher-reputation objective ───────
+  // An objective B is hidden if another objective A references B in extendedObjectiveBoxIds
   // AND A's reputation >= REPUTATION_THRESHOLD AND A's reputation is strictly
   // greater than B's reputation. The strict-greater check stops a low-rep
   // descendant from masking a higher-rep ancestor (e.g. demo-img-003 rep 13
   // extending demo-img-001 rep 28 would otherwise hide the canonical entry).
   $: hiddenBoxIds = (() => {
     const hidden = new Set<string>();
-    const skillByBoxId = new Map(skills.map((s) => [s.boxId, s] as const));
-    for (const skill of skills) {
-      const rep = calculateSkillReputation(skill).total;
-      if (rep < REPUTATION_THRESHOLD || skill.extendedSkillBoxIds.length === 0) continue;
-      for (const refId of skill.extendedSkillBoxIds) {
-        const target = skillByBoxId.get(refId);
+    const objectiveByBoxId = new Map(objectives.map((s) => [s.boxId, s] as const));
+    for (const objective of objectives) {
+      const rep = calculateObjectiveReputation(objective).total;
+      if (rep < REPUTATION_THRESHOLD || objective.extendedObjectiveBoxIds.length === 0) continue;
+      for (const refId of objective.extendedObjectiveBoxIds) {
+        const target = objectiveByBoxId.get(refId);
         if (!target) continue;
-        const targetRep = calculateSkillReputation(target).total;
+        const targetRep = calculateObjectiveReputation(target).total;
         if (rep > targetRep) hidden.add(refId);
       }
     }
@@ -702,19 +702,19 @@
 
   // Collapse same-named submissions to the highest-reputation instance so the
   // gallery shows the canonical "Image Classification" (etc.) card. The other
-  // submissions remain reachable from the skill-detail view via the
-  // `siblingSkills` dropdown, which already lists every concurrent entry with
+  // submissions remain reachable from the objective-detail view via the
+  // `siblingObjectives` dropdown, which already lists every concurrent entry with
   // its own reputation badge.
-  function pickCanonicalByName(list: Skill[]): Skill[] {
-    const byName = new Map<string, Skill>();
+  function pickCanonicalByName(list: Objective[]): Objective[] {
+    const byName = new Map<string, Objective>();
     for (const s of list) {
       const current = byName.get(s.name);
       if (!current) {
         byName.set(s.name, s);
         continue;
       }
-      const currentRep = calculateSkillReputation(current).total;
-      const candidateRep = calculateSkillReputation(s).total;
+      const currentRep = calculateObjectiveReputation(current).total;
+      const candidateRep = calculateObjectiveReputation(s).total;
       if (candidateRep > currentRep) byName.set(s.name, s);
     }
     return Array.from(byName.values());
@@ -723,13 +723,13 @@
   // Apply the minimum-reputation gallery filter on top of search/category.
   // `minErg` is entered by the user in ERG; stored reputation is nanoERG, so we
   // convert before comparing.
-  function filterByReputation(list: Skill[], minErg: number): Skill[] {
+  function filterByReputation(list: Objective[], minErg: number): Objective[] {
     if (!minErg || minErg <= 0) return list;
     const minNanoErg = minErg * NANOERG_PER_ERG;
-    return list.filter(s => calculateSkillReputation(s).total >= minNanoErg);
+    return list.filter(s => calculateObjectiveReputation(s).total >= minNanoErg);
   }
 
-  $: displayedSkills = sortSkills(
+  $: displayedObjectives = sortObjectives(
     pickCanonicalByName(
       filterByReputation(
         filterByCategory(filtered, activeCategory).filter(s => !hiddenBoxIds.has(s.boxId)),
@@ -738,42 +738,42 @@
     ),
     currentSort
   );
-  // Once the user searches, hydrate whichever skills are actually displayed so
+  // Once the user searches, hydrate whichever objectives are actually displayed so
   // their coverage/benchmark/result counts fill in on demand.
-  $: if (hasQuery && displayedSkills.length) ensureHydrated(displayedSkills);
-  $: totalServices = skills.reduce((sum, s) => sum + s.coverages.length, 0);
-  $: totalResults = skills.reduce((sum, s) => sum + s.resultCount, 0);
+  $: if (hasQuery && displayedObjectives.length) ensureHydrated(displayedObjectives);
+  $: totalServices = objectives.reduce((sum, s) => sum + s.coverages.length, 0);
+  $: totalResults = objectives.reduce((sum, s) => sum + s.resultCount, 0);
 
-  // Gallery counter reconciliation: the StatsBar shows every Skill on-chain, but
-  // the listing hides skills that are nested under a higher-reputation parent
-  // (extendedSkillBoxIds) or collapsed as duplicate-named submissions. When no
+  // Gallery counter reconciliation: the StatsBar shows every Objective on-chain, but
+  // the listing hides objectives that are nested under a higher-reputation parent
+  // (extendedObjectiveBoxIds) or collapsed as duplicate-named submissions. When no
   // user filter is active, the gap between the two numbers is exactly those
   // hidden entries — surface it so the counts reconcile for the user.
   $: galleryUnfiltered = !searchQuery && activeCategory === "all" && (!minReputation || minReputation <= 0);
-  $: hiddenFromListing = Math.max(0, skills.length - displayedSkills.length);
+  $: hiddenFromListing = Math.max(0, objectives.length - displayedObjectives.length);
 
-  // Track duplicate skill names to flag concurrent submissions. Anyone can post
-  // a skill with the same human name as another — the chain doesn't enforce
+  // Track duplicate objective names to flag concurrent submissions. Anyone can post
+  // an objective with the same human name as another — the chain doesn't enforce
   // uniqueness — so the UI must surface "this name is claimed by N others" and
   // let users jump between them via the sibling dropdown below.
-  $: skillNameCounts = skills.reduce((acc, s) => {
+  $: objectiveNameCounts = objectives.reduce((acc, s) => {
     acc[s.name] = (acc[s.name] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  // Sibling skills sharing the selected skill's name (excluding itself). Hoisted
-  // out of the template so it's recomputed only when skills/selectedSkill
+  // Sibling objectives sharing the selected objective's name (excluding itself). Hoisted
+  // out of the template so it's recomputed only when objectives/selectedObjective
   // actually change, not on every render of the detail view.
-  $: siblingSkills = selectedSkill
-    ? skills.filter((s) => s.name === selectedSkill!.name && s.boxId !== selectedSkill!.boxId)
+  $: siblingObjectives = selectedObjective
+    ? objectives.filter((s) => s.name === selectedObjective!.name && s.boxId !== selectedObjective!.boxId)
     : [];
 
-  // Canonical topic id for the relationship between two skills. The id is
-  // strictly `{skill_nueva}_{skill_antigua}` — newer box first, older second —
+  // Canonical topic id for the relationship between two objectives. The id is
+  // strictly `{newer_objective}_{older_objective}` — newer box first, older second —
   // ordered by creation height (tie-broken by boxId for determinism). Ordering
-  // by age means both skills resolve the pair to the SAME topic, so the debate
+  // by age means both objectives resolve the pair to the SAME topic, so the debate
   // about how related they are lives in one shared thread rather than two.
-  function relationshipTopicId(a: Skill, b: Skill): string {
+  function relationshipTopicId(a: Objective, b: Objective): string {
     const aH = a.creationHeight ?? 0;
     const bH = b.creationHeight ?? 0;
     const aNewer = aH !== bH ? aH > bH : a.boxId > b.boxId;
@@ -781,25 +781,25 @@
     return `${nueva.boxId}_${antigua.boxId}`;
   }
 
-  // Open the shared relationship discussion for the selected skill and a sibling.
-  // Guarded here (not in the template) so the null-narrowing of `selectedSkill`
+  // Open the shared relationship discussion for the selected objective and a sibling.
+  // Guarded here (not in the template) so the null-narrowing of `selectedObjective`
   // happens in TS rather than via a non-null assertion in a Svelte handler.
-  function discussRelationship(sibling: Skill): void {
-    if (!selectedSkill) return;
+  function discussRelationship(sibling: Objective): void {
+    if (!selectedObjective) return;
     openForum(
-      relationshipTopicId(selectedSkill, sibling),
-      `Relation: ${selectedSkill.name} ↔ ${sibling.name}`
+      relationshipTopicId(selectedObjective, sibling),
+      `Relation: ${selectedObjective.name} ↔ ${sibling.name}`
     );
   }
 
-  type RelatedSkillDirection = "outgoing" | "incoming" | "both";
+  type RelatedObjectiveDirection = "outgoing" | "incoming" | "both";
 
-  type RelatedSkillLink = {
-    skill: Skill;
-    direction: RelatedSkillDirection;
+  type RelatedObjectiveLink = {
+    objective: Objective;
+    direction: RelatedObjectiveDirection;
   };
 
-  function relatedSkillDirectionLabel(direction: RelatedSkillDirection): string {
+  function relatedObjectiveDirectionLabel(direction: RelatedObjectiveDirection): string {
     switch (direction) {
       case "outgoing":
         return "references";
@@ -810,14 +810,14 @@
     }
   }
 
-  $: relatedSkills = selectedSkill
+  $: relatedObjectives = selectedObjective
     ? (() => {
-        const related = new Map<string, RelatedSkillLink>();
+        const related = new Map<string, RelatedObjectiveLink>();
 
-        const addRelated = (skill: Skill, direction: RelatedSkillDirection) => {
-          const existing = related.get(skill.boxId);
+        const addRelated = (objective: Objective, direction: RelatedObjectiveDirection) => {
+          const existing = related.get(objective.boxId);
           if (!existing) {
-            related.set(skill.boxId, { skill, direction });
+            related.set(objective.boxId, { objective, direction });
             return;
           }
           if (existing.direction !== direction) {
@@ -825,17 +825,17 @@
           }
         };
 
-        for (const refId of selectedSkill.extendedSkillBoxIds) {
-          const match = skills.find((s) => s.boxId === refId);
-          if (match && match.boxId !== selectedSkill.boxId) {
+        for (const refId of selectedObjective.extendedObjectiveBoxIds) {
+          const match = objectives.find((s) => s.boxId === refId);
+          if (match && match.boxId !== selectedObjective.boxId) {
             addRelated(match, "outgoing");
           }
         }
 
-        for (const skill of skills) {
-          if (skill.boxId === selectedSkill.boxId) continue;
-          if (skill.extendedSkillBoxIds.includes(selectedSkill.boxId)) {
-            addRelated(skill, "incoming");
+        for (const objective of objectives) {
+          if (objective.boxId === selectedObjective.boxId) continue;
+          if (objective.extendedObjectiveBoxIds.includes(selectedObjective.boxId)) {
+            addRelated(objective, "incoming");
           }
         }
 
@@ -844,14 +844,14 @@
     : [];
 
   /**
-   * Composite score for one service across the skill's full (benchmark × metric)
+   * Composite score for one service across the objective's full (benchmark × metric)
    * tensor — delegates to scoring.ts so the aggregation rule lives in one place.
    * See the TODO header in scoring.ts for the open Josemi questions on
    * aggregation/normalization.
    */
-  function computeServiceCompositeScore(serviceId: string | undefined, skill: Skill): number {
+  function computeServiceCompositeScore(serviceId: string | undefined, objective: Objective): number {
     if (!serviceId) return 0;
-    const tensor = buildComparisonTensor(skill);
+    const tensor = buildComparisonTensor(objective);
     const row = tensor.rows.find((r) => r.serviceId === serviceId);
     return row?.composite ?? 0;
   }
@@ -861,82 +861,82 @@
     return `${hash.slice(0, 8)}…${hash.slice(-4)}`;
   }
 
-  // ── Skill deep-link sync ─────────────────────────────────────────────────
-  // Keep `?skill=<boxId>` in the URL in sync with the open skill-detail view so
-  // a skill page can be shared or refreshed (mirrors the `?profile=` handling).
+  // ── Objective deep-link sync ─────────────────────────────────────────────────
+  // Keep `?objective=<boxId>` in the URL in sync with the open objective-detail view so
+  // an objective page can be shared or refreshed (mirrors the `?profile=` handling).
   // Only pushes a history entry when the param actually changes to avoid
   // duplicate entries (e.g. when resolving an initial deep link).
-  function syncSkillParam(boxId: string | null): void {
+  function syncObjectiveParam(boxId: string | null): void {
     if (!browser) return;
     const current = new URL(window.location.href);
-    const currentParam = current.searchParams.get("skill");
+    const currentParam = current.searchParams.get("objective");
     if (boxId) {
       if (currentParam === boxId) return;
-      current.searchParams.set("skill", boxId);
+      current.searchParams.set("objective", boxId);
     } else {
       if (!currentParam) return;
-      current.searchParams.delete("skill");
+      current.searchParams.delete("objective");
     }
     window.history.pushState({}, "", current);
   }
 
-  // ── Select skill with transition ───────────────────────────────────────────
-  function selectSkill(skill: Skill) {
-    ensureHydrated([skill]); // pull in coverages/benchmarks/results for the detail view
+  // ── Select objective with transition ───────────────────────────────────────────
+  function selectObjective(objective: Objective) {
+    ensureHydrated([objective]); // pull in coverages/benchmarks/results for the detail view
     detailVisible = false;
-    selectedSkill = skill;
+    selectedObjective = objective;
     detailTab = "benchmarks";
     selectedBenchmarkId = null;
     showCreateBenchmarkForm = false;
-    syncSkillParam(skill.boxId);
+    syncObjectiveParam(objective.boxId);
     setTimeout(() => { detailVisible = true; }, 50);
     if (browser) window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function backToGallery() {
     detailVisible = false;
-    syncSkillParam(null);
-    setTimeout(() => { selectedSkill = null; }, 200);
+    syncObjectiveParam(null);
+    setTimeout(() => { selectedObjective = null; }, 200);
   }
 
-  // ── Fork / Edit skill ──────────────────────────────────────────────────────
-  // Pre-populates the Submit form with the selected skill's data and switches view.
-  // Adds the original skill's boxId to extendedSkillBoxIds so the new skill references it.
+  // ── Fork / Edit objective ──────────────────────────────────────────────────────
+  // Pre-populates the Submit form with the selected objective's data and switches view.
+  // Adds the original objective's boxId to extendedObjectiveBoxIds so the new objective references it.
   let prefillRelatedBoxIds: string[] = [];
 
-  function forkSkill(skill: Skill) {
-    newSkillName = skill.name;
-    newSkillProse = skill.prose;
-    newSkillFormal = skill.formal ?? '';
-    newSkillDomain = skill.domain;
-    newSkillTags = skill.tags.join(', ');
-    prefillRelatedBoxIds = [skill.boxId];
-    relatedSkillBoxIds = [skill.boxId, ...skill.extendedSkillBoxIds];
+  function forkObjective(objective: Objective) {
+    newObjectiveName = objective.name;
+    newObjectiveProse = objective.prose;
+    newObjectiveFormal = objective.formal ?? '';
+    newObjectiveDomain = objective.domain;
+    newObjectiveTags = objective.tags.join(', ');
+    prefillRelatedBoxIds = [objective.boxId];
+    relatedObjectiveBoxIds = [objective.boxId, ...objective.extendedObjectiveBoxIds];
     // Switch to submit tab, remembering where we came from so the Submit view
-    // can offer a "Back to skill" button (Task: modify-skill back-navigation).
-    returnToSkill = skill;
-    selectedSkill = null;
-    syncSkillParam(null);
+    // can offer a "Back to objective" button (Task: modify-objective back-navigation).
+    returnToObjective = objective;
+    selectedObjective = null;
+    syncObjectiveParam(null);
     activeTab = "submit";
-    // The submit tab now renders on its own (the skill overlay that was open is
-    // closed by clearing selectedSkill above); just reset scroll to the top.
+    // The submit tab now renders on its own (the objective overlay that was open is
+    // closed by clearing selectedObjective above); just reset scroll to the top.
     if (browser) window.scrollTo({ top: 0, behavior: "auto" });
   }
 
-  // Return from the Submit ("Modify Skill") view to the skill detail the user
-  // came from. Clears the remembered skill so the button only shows when
+  // Return from the Submit ("Modify Objective") view to the objective detail the user
+  // came from. Clears the remembered objective so the button only shows when
   // relevant.
-  function backToSkillFromSubmit() {
-    const skill = returnToSkill;
-    returnToSkill = null;
-    if (skill) {
+  function backToObjectiveFromSubmit() {
+    const objective = returnToObjective;
+    returnToObjective = null;
+    if (objective) {
       activeTab = "gallery";
-      selectSkill(skill);
+      selectObjective(objective);
     }
   }
 
-  // ── Submit new skill ───────────────────────────────────────────────────────
-  async function handleSubmitSkill() {
+  // ── Submit new objective ───────────────────────────────────────────────────────
+  async function handleSubmitObjective() {
     if (enhancementsRef) {
       validationErrors = enhancementsRef.validate();
       if (Object.keys(validationErrors).length > 0) {
@@ -945,33 +945,33 @@
       }
     }
     if (!requireProfileForWrite()) { submitError = !$walletConnected ? "Connect your wallet first." : "Create a reputation profile first."; return; }
-    if (!newSkillName.trim()) { submitError = "Name is required."; validationErrors = { name: "Skill name is required." }; return; }
+    if (!newObjectiveName.trim()) { submitError = "Name is required."; validationErrors = { name: "Objective name is required." }; return; }
 
     submitting = true;
     submitError = null;
     submitTx = null;
     try {
-      const txId = await createSkill({
-        name: newSkillName.trim(),
-        prose: newSkillProse.trim(),
-        formal: newSkillFormal.trim(),
-        tags: newSkillTags.split(",").map((t) => t.trim()).filter(Boolean),
-        domain: newSkillDomain.trim(),
-        extendedSkillBoxIds: [...relatedSkillBoxIds],
+      const txId = await createObjective({
+        name: newObjectiveName.trim(),
+        prose: newObjectiveProse.trim(),
+        formal: newObjectiveFormal.trim(),
+        tags: newObjectiveTags.split(",").map((t) => t.trim()).filter(Boolean),
+        domain: newObjectiveDomain.trim(),
+        extendedObjectiveBoxIds: [...relatedObjectiveBoxIds],
         sourceHash: "",
         tokenAmount: 1,
         mainBox: currentMainBox(),
       });
       submitTx = txId;
-      await refreshSkills();
-      toasts.success($demoMode ? "Skill submitted successfully (demo mode)." : "Skill published on-chain.");
-      newSkillName = '';
-      newSkillProse = '';
-      newSkillFormal = '';
-      newSkillDomain = '';
-      newSkillTags = '';
+      await refreshObjectives();
+      toasts.success($demoMode ? "Objective submitted successfully (demo mode)." : "Objective published on-chain.");
+      newObjectiveName = '';
+      newObjectiveProse = '';
+      newObjectiveFormal = '';
+      newObjectiveDomain = '';
+      newObjectiveTags = '';
       prefillRelatedBoxIds = [];
-      relatedSkillBoxIds = [];
+      relatedObjectiveBoxIds = [];
     } catch (e: any) {
       submitError = e.message || "Submission failed.";
       toasts.error(submitError || "Submission failed.");
@@ -982,8 +982,8 @@
 
   // ── Create Benchmark ───────────────────────────────────────────────────────
   async function handleCreateBenchmark() {
-    if (!selectedSkill) {
-      toasts.error("Select a skill first.");
+    if (!selectedObjective) {
+      toasts.error("Select an objective first.");
       return;
     }
     if (!benchmarkName.trim()) {
@@ -1007,7 +1007,7 @@
     benchmarkSubmitting = true;
     try {
       await createBenchmarkEntity({
-        skillBoxId: selectedSkill.boxId,
+        objectiveBoxId: selectedObjective.boxId,
         name: benchmarkName.trim(),
         description: benchmarkDescription.trim(),
         caseDescriptors: cleanedDescriptors,
@@ -1015,7 +1015,7 @@
         sourceHash: benchmarkSourceHash.trim() || undefined,
         mainBox: currentMainBox()
       });
-      await refreshSkills(selectedSkill.boxId);
+      await refreshObjectives(selectedObjective.boxId);
       toasts.success($demoMode ? "Benchmark created (demo mode)." : "Benchmark published on-chain.");
       benchmarkName = "";
       benchmarkDescription = "";
@@ -1031,9 +1031,9 @@
   }
 
   // Clear validation errors when fields change
-  $: if (newSkillName) { delete validationErrors["name"]; validationErrors = validationErrors; }
-  $: if (newSkillProse) { delete validationErrors["prose"]; validationErrors = validationErrors; }
-  $: if (newSkillDomain) { delete validationErrors["domain"]; validationErrors = validationErrors; }
+  $: if (newObjectiveName) { delete validationErrors["name"]; validationErrors = validationErrors; }
+  $: if (newObjectiveProse) { delete validationErrors["prose"]; validationErrors = validationErrors; }
+  $: if (newObjectiveDomain) { delete validationErrors["domain"]; validationErrors = validationErrors; }
 
   // ── Coverage view helpers ──────────────────────────────────────────────────
   /**
@@ -1101,11 +1101,11 @@
 
   function collectServiceResults(
     serviceId: string | undefined,
-    skill: Skill
+    objective: Objective
   ): ServiceBenchmarkBlock[] {
     if (!serviceId) return [];
     const blocks: ServiceBenchmarkBlock[] = [];
-    for (const bench of skill.benchmarks) {
+    for (const bench of objective.benchmarks) {
       const metrics = bench.performanceMetrics ?? [];
       const descriptors = bench.caseDescriptors ?? [];
       if (metrics.length === 0) continue;
@@ -1138,8 +1138,8 @@
    * Comparison view = the full (service × metric-column) tensor.
    * See scoring.ts for column definitions and aggregation rules.
    */
-  function buildComparisonMatrix(skill: Skill): ComparisonTensor {
-    return buildComparisonTensor(skill);
+  function buildComparisonMatrix(objective: Objective): ComparisonTensor {
+    return buildComparisonTensor(objective);
   }
 
   onMount(() => {
@@ -1152,8 +1152,8 @@
       if (env === "demo" || env === "dev") demoMode.set(true);
       const initialProfile = url.searchParams.get("profile");
       if (initialProfile) viewedProfileId.set(initialProfile);
-      const initialSkill = url.searchParams.get("skill");
-      if (initialSkill) pendingSkillId = initialSkill;
+      const initialObjective = url.searchParams.get("objective");
+      if (initialObjective) pendingObjectiveId = initialObjective;
       const initialNetwork = url.searchParams.get("network");
       if (initialNetwork) {
         viewedNetworkId.set(initialNetwork);
@@ -1163,12 +1163,12 @@
       if (initialService) viewedServiceId.set(initialService);
       // Only now that the initial deep-link params have been consumed may the
       // reactive URL-sync touch the address bar — otherwise it runs during init
-      // (before this onMount) and strips `?profile=`/`?skill=` before they're read.
+      // (before this onMount) and strips `?profile=`/`?objective=` before they're read.
       urlSyncEnabled = true;
-      loadSkills();
+      loadObjectives();
 
-      // Back/forward button: keep the profile- and skill-detail views in sync
-      // with the URL (`?profile=` / `?skill=`).
+      // Back/forward button: keep the profile- and objective-detail views in sync
+      // with the URL (`?profile=` / `?objective=`).
       const popHandler = () => {
         const params = new URL(window.location.href).searchParams;
         viewedProfileId.set(params.get("profile") || null);
@@ -1176,15 +1176,15 @@
         viewedNetworkId.set(nextNetwork || null);
         if (nextNetwork) activeTab = "networks";
         viewedServiceId.set(params.get("service") || null);
-        const nextSkill = params.get("skill");
-        if (nextSkill) {
-          const match = skills.find((s) => s.boxId === nextSkill);
+        const nextObjective = params.get("objective");
+        if (nextObjective) {
+          const match = objectives.find((s) => s.boxId === nextObjective);
           if (match) {
-            selectedSkill = match;
+            selectedObjective = match;
             detailVisible = true;
           }
         } else {
-          selectedSkill = null;
+          selectedObjective = null;
           detailVisible = false;
         }
       };
@@ -1201,13 +1201,13 @@
   // another user's profile (`viewedProfileId`) and the connected user's own
   // Profile tab (`activeTab === "profile"`).
   //
-  // While any profile is on screen we also drop a stale `?skill=`: the
-  // in-session "back to skill" button is driven by in-memory `returnToSkill`,
+  // While any profile is on screen we also drop a stale `?objective=`: the
+  // in-session "back to objective" button is driven by in-memory `returnToObjective`,
   // not the URL, so removing the param means someone opening a shared
-  // `?profile=` link just sees the profile — no leftover skill, no dangling
+  // `?profile=` link just sees the profile — no leftover objective, no dangling
   // back-navigation that only made sense in the original user's session.
   let lastSyncedProfileParam: string | null | undefined = undefined;
-  // Enabled at the end of onMount, once initial `?profile=`/`?skill=` deep links
+  // Enabled at the end of onMount, once initial `?profile=`/`?objective=` deep links
   // have been read — guards against this reactive stripping them during init.
   let urlSyncEnabled = false;
   // Only an explicitly-opened profile-detail overlay is mirrored to `?profile=`.
@@ -1223,8 +1223,8 @@
         current.searchParams.set("profile", desiredProfileParam);
         changed = true;
       }
-      if (current.searchParams.has("skill")) {
-        current.searchParams.delete("skill");
+      if (current.searchParams.has("objective")) {
+        current.searchParams.delete("objective");
         changed = true;
       }
     } else if (currentParam) {
@@ -1240,14 +1240,14 @@
   // {#if $viewedProfileId} block), so no tab should appear "active".
   $: if ($viewedProfileId) activeTab = "";
 
-  // Resolve a `?skill=<boxId>` deep link once the gallery has loaded: select the
-  // matching skill so a shared link opens straight to its detail view.
-  $: if (pendingSkillId && skills.length) {
-    const match = skills.find((s) => s.boxId === pendingSkillId);
-    pendingSkillId = null;
+  // Resolve a `?objective=<boxId>` deep link once the gallery has loaded: select the
+  // matching objective so a shared link opens straight to its detail view.
+  $: if (pendingObjectiveId && objectives.length) {
+    const match = objectives.find((s) => s.boxId === pendingObjectiveId);
+    pendingObjectiveId = null;
     if (match) {
       activeTab = "gallery";
-      selectSkill(match);
+      selectObjective(match);
     }
   }
 
@@ -1318,7 +1318,7 @@
          in the gallery view itself, so the old second-level row is gone. -->
     <div class="navbar-top">
       <a href="/" class="logo-container" on:click|preventDefault={() => openTab("gallery")}>
-        <span class="logo-text">Unstoppable Skills</span>
+        <span class="logo-text">Celaut Registry</span>
       </a>
 
       <!-- Right cluster: nav links + wallet + theme all hug the far-right edge,
@@ -1408,7 +1408,7 @@
     <div class="detail-view detail-visible">
       <ServicePage
         serviceId={$viewedServiceId}
-        {skills}
+        {objectives}
         on:back={() => {
           viewedServiceId.set(null);
           if (typeof window !== 'undefined') {
@@ -1417,14 +1417,14 @@
             window.history.pushState({}, '', u);
           }
         }}
-        on:navigateSkill={(e) => {
+        on:navigateObjective={(e) => {
           viewedServiceId.set(null);
           if (typeof window !== 'undefined') {
             const u = new URL(window.location.href);
             u.searchParams.delete('service');
             window.history.pushState({}, '', u);
           }
-          handleNavigateSkill(e.detail);
+          handleNavigateObjective(e.detail);
         }}
       />
     </div>
@@ -1451,8 +1451,8 @@
         </div>
 
         <!-- Same reputation-profile card the connected user sees, but read-only
-             unless this is the user's own profile. Passing the full `skills`
-             list lets the card self-compute the same contributions (skills,
+             unless this is the user's own profile. Passing the full `objectives`
+             list lets the card self-compute the same contributions (objectives,
              benchmarks, services, results) it shows for the own profile. -->
         {#if viewedProfileLoading}
           <div class="detail-card">
@@ -1462,8 +1462,8 @@
           <ProfileDetailsCard
             proof={viewedProfileProof}
             readOnly={!isOwnViewedProfile}
-            skills={skills}
-            on:navigateSkill={(e) => handleNavigateSkill(e.detail)}
+            objectives={objectives}
+            on:navigateObjective={(e) => handleNavigateObjective(e.detail)}
           />
         {:else}
           <div class="detail-card">
@@ -1474,13 +1474,13 @@
       </div>
     </div>
 
-  {:else if selectedSkill}
-      <SkillDetailView
-        selectedSkill={selectedSkill}
-        {siblingSkills}
-        {relatedSkills}
-        {selectedSkillReputation}
-        {skillSources}
+  {:else if selectedObjective}
+      <ObjectiveDetailView
+        selectedObjective={selectedObjective}
+        {siblingObjectives}
+        {relatedObjectives}
+        {selectedObjectiveReputation}
+        {objectiveSources}
         bind:detailVisible
         bind:detailTab
         bind:selectedBenchmarkId
@@ -1494,10 +1494,10 @@
         bind:benchmarkSubmitting
         bind:expandedAllCases
         {backToGallery}
-        {selectSkill}
-        {forkSkill}
+        {selectObjective}
+        {forkObjective}
         {discussRelationship}
-        {refreshSkills}
+        {refreshObjectives}
         {openFileSourceModal}
         {handleCreateBenchmark}
         {addBenchmarkMetric}
@@ -1512,7 +1512,7 @@
         {allCasesKey}
         {collectIndividualCases}
         {buildComparisonMatrix}
-        {relatedSkillDirectionLabel}
+        {relatedObjectiveDirectionLabel}
         {copyToClipboard}
         {formatHash}
         goToProfile={() => openTab('profile')}
@@ -1520,11 +1520,11 @@
 
     {:else if activeTab === "gallery" || activeTab === ""}
       <!-- ══ Search — the only scroll page ═══════════════════════════════════
-           Search hero → skills gallery. How it works is its own header tab now,
+           Search hero → objectives gallery. How it works is its own header tab now,
            not appended here. Every other route is a classic header tab (below).
            Detail/overlay views above still REPLACE this page when active. -->
 
-      <!-- a. #gallery — full-viewport search hero + the skills gallery ─────── -->
+      <!-- a. #gallery — full-viewport search hero + the objectives gallery ─────── -->
       <section id="gallery" class:searching={hasQuery}>
         <!-- Google-style landing: only the centered heading + search show until
              the user types a query. When searching, the hero collapses and the
@@ -1532,8 +1532,8 @@
         <div class="scroll-hero">
           <div class="scroll-hero-inner">
             {#if !hasQuery}
-              <h1 class="scroll-hero-title">What skill are you looking for?</h1>
-              <p class="scroll-hero-sub">Search any skill, tag or domain. Powered by a decentralized registry.</p>
+              <h1 class="scroll-hero-title">What objective are you looking for?</h1>
+              <p class="scroll-hero-sub">Search any objective, tag or domain. Powered by a decentralized registry.</p>
             {/if}
             <div class="scroll-hero-search">
               <svg class="scroll-hero-search-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
@@ -1542,12 +1542,12 @@
               <input
                 type="text"
                 bind:value={searchQuery}
-                placeholder="Search skills..."
+                placeholder="Search objectives..."
                 class="scroll-hero-input"
-                aria-label="Search skills"
+                aria-label="Search objectives"
                 on:keydown={(e) => { if (e.key === 'Enter') submitHeroSearch(); }}
               />
-              <button class="scroll-hero-submit" type="button" on:click={submitHeroSearch} aria-label="Search skills" title="Search">
+              <button class="scroll-hero-submit" type="button" on:click={submitHeroSearch} aria-label="Search objectives" title="Search">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                   <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
                 </svg>
@@ -1557,7 +1557,7 @@
         </div>
 
       {#if hasQuery}
-      <div id="skills-section" class="container mx-auto px-8 pb-8">
+      <div id="objectives-section" class="container mx-auto px-8 pb-8">
         <!-- Results view — progressive disclosure. By default the results view
              is just [ N results ] + a single subtle "Filters" control + cards.
              ALL secondary controls (category facets, sort, min-reputation,
@@ -1566,14 +1566,14 @@
         <div class="gallery-toolbar">
           <p class="gallery-count">
             {#if galleryUnfiltered && hiddenFromListing > 0}
-              <span>{displayedSkills.length} of {skills.length} skill{skills.length !== 1 ? "s" : ""} shown</span>
+              <span>{displayedObjectives.length} of {objectives.length} objective{objectives.length !== 1 ? "s" : ""} shown</span>
               <InfoTip title="Why fewer cards than the total?">
-                <p>The counter above shows every <strong>Skill registered on-chain</strong> ({skills.length}). The gallery lists <strong>{displayedSkills.length}</strong> of them.</p>
-                <p>The other {hiddenFromListing} {hiddenFromListing === 1 ? "is" : "are"} hidden because they're <strong>nested under a parent skill</strong> (a higher-reputation skill that extends them) or are duplicate-named submissions collapsed to their canonical entry. Open a skill to reach its nested and sibling skills.</p>
+                <p>The counter above shows every <strong>Objective registered on-chain</strong> ({objectives.length}). The gallery lists <strong>{displayedObjectives.length}</strong> of them.</p>
+                <p>The other {hiddenFromListing} {hiddenFromListing === 1 ? "is" : "are"} hidden because they're <strong>nested under a parent objective</strong> (a higher-reputation objective that extends them) or are duplicate-named submissions collapsed to their canonical entry. Open an objective to reach its nested and sibling objectives.</p>
               </InfoTip>
             {:else}
               <span>
-                {displayedSkills.length} result{displayedSkills.length !== 1 ? "s" : ""}
+                {displayedObjectives.length} result{displayedObjectives.length !== 1 ? "s" : ""}
               </span>
             {/if}
           </p>
@@ -1595,7 +1595,7 @@
           <div class="gallery-advanced gallery-advanced-panel">
             <!-- Category — moved behind the disclosure (no longer a primary
                  inline facet on the default results view). -->
-            <CategoryFilter {activeCategory} {skills} on:filter={(e) => { activeCategory = e.detail; }} />
+            <CategoryFilter {activeCategory} {objectives} on:filter={(e) => { activeCategory = e.detail; }} />
             <div class="gallery-advanced-row">
               <div class="gallery-advanced-control">
                 <span class="gallery-advanced-label">Sort</span>
@@ -1615,7 +1615,7 @@
                   <span class="gallery-minrep-suffix">ERGs</span>
                 </span>
               </label>
-              <button class="refresh-btn" on:click={loadSkills}>
+              <button class="refresh-btn" on:click={loadObjectives}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M2.5 22v-6h6"/><path d="M22 12A10 10 0 0 0 3.25 7.25M2 12a10 10 0 0 0 18.75 4.75"/></svg>
                 Refresh
               </button>
@@ -1624,7 +1624,7 @@
         {/if}
 
         {#if loading}
-          <div class="skills-grid">
+          <div class="objectives-grid">
             {#each [0, 1, 2, 3, 4, 5] as i}
               <SkeletonCard index={i} />
             {/each}
@@ -1636,38 +1636,38 @@
                 <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
               </svg>
             </div>
-            <p class="text-lg font-semibold">Couldn't load skills</p>
+            <p class="text-lg font-semibold">Couldn't load objectives</p>
             <p class="text-sm text-muted-foreground mt-1">{error}</p>
-            <button class="refresh-btn mt-3" on:click={loadSkills}>
+            <button class="refresh-btn mt-3" on:click={loadObjectives}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M2.5 22v-6h6"/><path d="M22 12A10 10 0 0 0 3.25 7.25M2 12a10 10 0 0 0 18.75 4.75"/></svg>
               Retry
             </button>
           </div>
-        {:else if displayedSkills.length === 0}
+        {:else if displayedObjectives.length === 0}
           <div class="empty-state">
             <div class="empty-state-icon">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                 <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
               </svg>
             </div>
-            <p class="text-lg font-semibold">No skills found</p>
+            <p class="text-lg font-semibold">No objectives found</p>
             {#if searchQuery || activeCategory !== "all" || minReputation > 0}
               <p class="text-sm text-muted-foreground mt-1">Try a different search term, category, or lower the minimum reputation.</p>
             {:else}
-              <p class="text-sm text-muted-foreground mt-1">Be the first to submit a skill!</p>
+              <p class="text-sm text-muted-foreground mt-1">Be the first to submit an objective!</p>
             {/if}
           </div>
         {:else}
-          <div class="skills-grid">
-            {#each displayedSkills as skill, i (skill.boxId)}
-              <SkillCard
-                name={skill.name}
-                prose={skill.prose}
-                tags={skill.tags}
-                domain={skill.domain}
-                profileId={skill.profileId}
+          <div class="objectives-grid">
+            {#each displayedObjectives as objective, i (objective.boxId)}
+              <ObjectiveCard
+                name={objective.name}
+                prose={objective.prose}
+                tags={objective.tags}
+                domain={objective.domain}
+                profileId={objective.profileId}
                 index={i}
-                on:click={() => selectSkill(skill)}
+                on:click={() => selectObjective(objective)}
               />
             {/each}
           </div>
@@ -1700,7 +1700,7 @@
               <h2 class="text-2xl md:text-3xl font-extrabold">Reputation Profile</h2>
             </div>
             <p class="text-muted-foreground text-sm">
-              Your on-chain reputation profile. Required before publishing skills, adding a service solution, or submitting benchmarks.
+              Your on-chain reputation profile. Required before publishing objectives, adding a service solution, or submitting benchmarks.
             </p>
           </div>
 
@@ -1745,30 +1745,30 @@
               proof={$reputation_proof}
               profiles={userProfiles}
               activeProfileId={$reputation_proof?.token_id}
-              skills={skills}
+              objectives={objectives}
               on:burn={openBurnModal}
               on:updateProfileData={(e) => handleUpdateProfileData(e.detail.data)}
               on:createProfile={openNewProfileModal}
               on:selectProfile={(e) => handleSelectProfile(e.detail)}
-              on:navigateSkill={(e) => handleNavigateSkill(e.detail)}
+              on:navigateObjective={(e) => handleNavigateObjective(e.detail)}
             />
           {/if}
         </div>
       </section>
 
     {:else if activeTab === "submit"}
-      <!-- ── Submit tab — publish a new skill on-chain ────────────────────────── -->
+      <!-- ── Submit tab — publish a new objective on-chain ────────────────────────── -->
       <section class="container mx-auto px-8 py-8">
         <div class="w-full">
-          {#if returnToSkill}
-            <!-- Return to the skill detail this Submit view was opened from
-                 ("Modify Skill" → back navigation, matching the profile view). -->
-            <BackButton label="Back to {returnToSkill.name}" on:click={backToSkillFromSubmit} />
+          {#if returnToObjective}
+            <!-- Return to the objective detail this Submit view was opened from
+                 ("Modify Objective" → back navigation, matching the profile view). -->
+            <BackButton label="Back to {returnToObjective.name}" on:click={backToObjectiveFromSubmit} />
           {/if}
           <div class="submit-header">
-            <h2 class="text-2xl md:text-3xl font-extrabold mb-1">Submit a Skill</h2>
+            <h2 class="text-2xl md:text-3xl font-extrabold mb-1">Submit an Objective</h2>
             <p class="text-muted-foreground text-sm">
-              Skills are published on-chain as Reputation Boxes. Connect your wallet to sign.
+              Objectives are published on-chain as Reputation Boxes. Connect your wallet to sign.
             </p>
           </div>
 
@@ -1777,7 +1777,7 @@
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-muted-foreground mb-3">
                 <rect x="2" y="6" width="20" height="12" rx="2"/><path d="M22 10H2"/><path d="M6 14h.01M10 14h.01"/>
               </svg>
-              <p class="text-muted-foreground mb-4">Connect your wallet to submit a skill.</p>
+              <p class="text-muted-foreground mb-4">Connect your wallet to submit an objective.</p>
               <WalletButton explorerUrl={$web_explorer_uri_addr} />
             </div>
           {:else if !$demoMode && !$reputation_proof}
@@ -1785,47 +1785,47 @@
               <p class="text-muted-foreground mb-4">You need a reputation profile before publishing on-chain. Create one in the <button type="button" class="link-btn" on:click={() => openTab('profile')}>Profile section</button>.</p>
             </div>
           {:else}
-            <form on:submit|preventDefault={handleSubmitSkill} class="submit-form">
+            <form on:submit|preventDefault={handleSubmitObjective} class="submit-form">
               <div class="form-group">
-                <label class="form-label" for="skill-name">Name <span class="text-red-500">*</span></label>
-                <input id="skill-name" class="form-input" class:form-input-error={validationErrors["name"]} bind:value={newSkillName} placeholder="e.g. Optimal XAU/BTC Performance" required />
+                <label class="form-label" for="objective-name">Name <span class="text-red-500">*</span></label>
+                <input id="objective-name" class="form-input" class:form-input-error={validationErrors["name"]} bind:value={newObjectiveName} placeholder="e.g. Optimal XAU/BTC Performance" required />
                 {#if validationErrors["name"]}
                   <p class="field-error-msg">{validationErrors["name"]}</p>
                 {/if}
               </div>
               <div class="form-group">
-                <label class="form-label" for="skill-prose">Description</label>
-                <textarea id="skill-prose" class="form-input form-textarea" class:form-input-error={validationErrors["prose"]} bind:value={newSkillProse} placeholder="What problem does this skill solve?"></textarea>
+                <label class="form-label" for="objective-prose">Description</label>
+                <textarea id="objective-prose" class="form-input form-textarea" class:form-input-error={validationErrors["prose"]} bind:value={newObjectiveProse} placeholder="What problem does this objective solve?"></textarea>
                 {#if validationErrors["prose"]}
                   <p class="field-error-msg">{validationErrors["prose"]}</p>
                 {/if}
               </div>
               <div class="form-group">
-                <label class="form-label" for="skill-formal">Formal specification <span class="text-muted-foreground font-normal text-xs">(optional, JSON)</span></label>
-                <FormalSpecEditor id="skill-formal" bind:value={newSkillFormal} schema={null} />
+                <label class="form-label" for="objective-formal">Formal specification <span class="text-muted-foreground font-normal text-xs">(optional, JSON)</span></label>
+                <FormalSpecEditor id="objective-formal" bind:value={newObjectiveFormal} schema={null} />
               </div>
               <div class="form-group">
-                <label class="form-label" for="skill-domain">Domain</label>
-                <input id="skill-domain" class="form-input" class:form-input-error={validationErrors["domain"]} bind:value={newSkillDomain} placeholder="e.g. finance, infrastructure, nlp" />
+                <label class="form-label" for="objective-domain">Domain</label>
+                <input id="objective-domain" class="form-input" class:form-input-error={validationErrors["domain"]} bind:value={newObjectiveDomain} placeholder="e.g. finance, infrastructure, nlp" />
                 {#if validationErrors["domain"]}
                   <p class="field-error-msg">{validationErrors["domain"]}</p>
                 {/if}
               </div>
               <div class="form-group">
-                <label class="form-label" for="skill-tags">Tags <span class="text-muted-foreground font-normal text-xs">(comma-separated)</span></label>
-                <input id="skill-tags" class="form-input" bind:value={newSkillTags} placeholder="trading, gold, bitcoin" />
+                <label class="form-label" for="objective-tags">Tags <span class="text-muted-foreground font-normal text-xs">(comma-separated)</span></label>
+                <input id="objective-tags" class="form-input" bind:value={newObjectiveTags} placeholder="trading, gold, bitcoin" />
               </div>
 
               <SubmitFormEnhancements
                 bind:this={enhancementsRef}
-                {skills}
-                name={newSkillName}
-                prose={newSkillProse}
-                domain={newSkillDomain}
-                tags={newSkillTags}
+                {objectives}
+                name={newObjectiveName}
+                prose={newObjectiveProse}
+                domain={newObjectiveDomain}
+                tags={newObjectiveTags}
                 errors={validationErrors}
                 {prefillRelatedBoxIds}
-                on:relatedChange={(event) => relatedSkillBoxIds = event.detail}
+                on:relatedChange={(event) => relatedObjectiveBoxIds = event.detail}
               />
 
               <button type="submit" class="submit-btn" disabled={submitting}>
@@ -1836,7 +1836,7 @@
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
                   </svg>
-                  Publish Skill On-Chain
+                  Publish Objective On-Chain
                 {/if}
               </button>
             </form>
@@ -1847,7 +1847,7 @@
                   <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
                 </svg>
                 <div>
-                  <p class="font-semibold">Skill submitted!</p>
+                  <p class="font-semibold">Objective submitted!</p>
                   <a href={`https://explorer.ergoplatform.com/en/transactions/${submitTx}`} target="_blank" rel="noopener noreferrer" class="text-sm break-all" style="color: hsl(var(--primary));">{submitTx}</a>
                 </div>
               </div>
@@ -2321,14 +2321,14 @@
     background: hsl(var(--muted) / 0.5);
   }
 
-  .skills-grid {
+  .objectives-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 1.25rem;
   }
 
   @media (min-width: 1200px) {
-    .skills-grid {
+    .objectives-grid {
       grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
     }
   }
@@ -2343,8 +2343,8 @@
   }
 
   /* ── Detail view ────────────────────────────────────────────────────── */
-  /* Match the Skills Gallery width: use the same Tailwind `container` so the
-     skill- and profile-detail views span exactly as wide as the gallery
+  /* Match the Objectives Gallery width: use the same Tailwind `container` so the
+     objective- and profile-detail views span exactly as wide as the gallery
      across every breakpoint. */
   .detail-view {
     @apply container mx-auto px-8 py-8;
@@ -2377,16 +2377,16 @@
   .detail-header-actions {
     @apply inline-flex items-center gap-2;
   }
-  .fork-skill-btn,
-  .share-skill-btn {
+  .fork-objective-btn,
+  .share-objective-btn {
     @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200;
     background: hsl(var(--muted) / 0.5);
     border: 1px solid hsl(var(--border));
     color: hsl(var(--muted-foreground));
     cursor: pointer;
   }
-  .fork-skill-btn:hover,
-  .share-skill-btn:hover {
+  .fork-objective-btn:hover,
+  .share-objective-btn:hover {
     background: hsl(var(--muted));
     color: hsl(var(--foreground));
     border-color: hsl(var(--foreground) / 0.2);
@@ -2434,7 +2434,7 @@
     flex-basis: 100%;
   }
 
-  /* Category glyph next to the skill title (replaces the old profile avatar). */
+  /* Category glyph next to the objective title (replaces the old profile avatar). */
   .detail-category-icon {
     display: inline-flex;
     align-items: center;
@@ -2910,7 +2910,7 @@
     opacity: 0.9;
   }
 
-  /* ── Current submissions for this skill (siblings) ─────────────────── */
+  /* ── Current submissions for this objective (siblings) ─────────────────── */
   .submissions-block {
     margin-bottom: 0.875rem;
   }
@@ -3195,8 +3195,8 @@
     background: hsl(var(--muted) / 0.5);
   }
 
-  /* ── Skill description: roomy, readable, WCAG-AA contrast ──────────── */
-  .skill-detail-prose {
+  /* ── Objective description: roomy, readable, WCAG-AA contrast ──────────── */
+  .objective-detail-prose {
     width: 100%;
     max-width: 84ch;
     margin-bottom: 1.5rem;

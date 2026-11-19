@@ -84,7 +84,7 @@ export const web_explorer_uri_addr = createPersistentStore(
 );
 
 // Box explorer URI — used to deep-link to a specific UTXO on the chain so
-// users can verify a Skill / Coverage / Benchmark / Result on-chain.
+// users can verify an Objective / Coverage / Benchmark / Result on-chain.
 export const web_explorer_uri_box = createPersistentStore(
     'web_explorer_uri_box',
     DEFAULT_EXPLORER_URI_BOX

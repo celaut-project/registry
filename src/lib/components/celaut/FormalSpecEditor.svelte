@@ -1,8 +1,8 @@
 <script lang="ts">
   /**
-   * FormalSpecEditor — structured editor for a Skill's `formal` field.
+   * FormalSpecEditor — structured editor for an Objective's `formal` field.
    *
-   * The on-chain Skill type carries `formal: string` (an opaque
+   * The on-chain Objective type carries `formal: string` (an opaque
    * machine-readable spec, e.g. JSON-Schema / typed grammar). Until Josemi
    * publishes the canonical JSON-Schema for the field, this component is
    * schema-agnostic: it edits an arbitrary JSON value via a structured

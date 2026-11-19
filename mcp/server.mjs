@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Celaut Skills MCP server — read-only.
+ * Celaut Registry MCP server — read-only.
  *
- * Exposes the data-fetching surface of the Celaut Skills registry over MCP
+ * Exposes the data-fetching surface of the Celaut Registry over MCP
  * stdio transport. No state-mutating tools are exposed; this server is safe
  * to wire into any MCP-aware client (Claude, IDEs, agents) for inspection.
  *
@@ -26,11 +26,11 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 
 import {
-  loadSkills,
+  loadObjectives,
   loadCoverages,
   loadBenchmarks,
   loadResults,
-  loadSkillTree,
+  loadObjectiveTree,
   loadBenchmarkCoverages,
   loadServiceData,
   loadServiceMetadata
@@ -40,31 +40,31 @@ import {
 
 const TOOLS = [
   {
-    name: 'load_skills',
-    description: 'Load every registered Skill (capability marker) from the Celaut on-chain registry.',
+    name: 'load_objectives',
+    description: 'Load every registered Objective (problem marker) from the Celaut on-chain registry.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false }
   },
   {
     name: 'load_coverages',
-    description: 'Load every Coverage for a given Skill box id — direct Coverage boxes plus services that indirectly cover the skill via Results. A Coverage asserts that a service can address a skill.',
+    description: 'Load every Coverage for a given Objective box id — direct Coverage boxes plus services that indirectly cover the objective via Results. A Coverage asserts that a service can address an objective.',
     inputSchema: {
       type: 'object',
       properties: {
-        skillBoxId: { type: 'string', description: 'Hex box id of the Skill.' }
+        objectiveBoxId: { type: 'string', description: 'Hex box id of the Objective.' }
       },
-      required: ['skillBoxId'],
+      required: ['objectiveBoxId'],
       additionalProperties: false
     }
   },
   {
     name: 'load_benchmarks',
-    description: 'Load every Benchmark opinion for a given Skill box id. A Benchmark defines how the skill is measured.',
+    description: 'Load every Benchmark opinion for a given Objective box id. A Benchmark defines how the objective is measured.',
     inputSchema: {
       type: 'object',
       properties: {
-        skillBoxId: { type: 'string', description: 'Hex box id of the Skill.' }
+        objectiveBoxId: { type: 'string', description: 'Hex box id of the Objective.' }
       },
-      required: ['skillBoxId'],
+      required: ['objectiveBoxId'],
       additionalProperties: false
     }
   },
@@ -82,7 +82,7 @@ const TOOLS = [
   },
   {
     name: 'load_benchmark_coverages',
-    description: 'Load the Coverages that target a Benchmark: the services that RUN it. A service with a Result is a solution of the skill (see load_coverages), not a runner.',
+    description: 'Load the Coverages that target a Benchmark: the services that RUN it. A service with a Result is a solution of the objective (see load_coverages), not a runner.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -93,15 +93,15 @@ const TOOLS = [
     }
   },
   {
-    name: 'load_skill_tree',
-    description: 'Load a Skill with its Coverages, Benchmarks (with Results and the services that run each) in a single nested payload. By default it also includes what the skills it extends have (`inheritedFrom` says which skill owns each entry), and lists `extends` and `extendedBy`.',
+    name: 'load_objective_tree',
+    description: 'Load an Objective with its Coverages, Benchmarks (with Results and the services that run each) in a single nested payload. By default it also includes what the objectives it extends have (`inheritedFrom` says which objective owns each entry), and lists `extends` and `extendedBy`.',
     inputSchema: {
       type: 'object',
       properties: {
-        skillBoxId: { type: 'string', description: 'Hex box id of the Skill.' },
-        inherit: { type: 'boolean', description: 'Include the coverages and benchmarks of the skills it extends (default true). Pass false for only its own.' }
+        objectiveBoxId: { type: 'string', description: 'Hex box id of the Objective.' },
+        inherit: { type: 'boolean', description: 'Include the coverages and benchmarks of the objectives it extends (default true). Pass false for only its own.' }
       },
-      required: ['skillBoxId'],
+      required: ['objectiveBoxId'],
       additionalProperties: false
     }
   },
@@ -133,18 +133,18 @@ const TOOLS = [
   // These build/submit on-chain reputation opinions via reputation-system/node.
   // Signing mode is set by env (CELAUT_SIGNER_MODE=seed|unsigned); see publish.mjs.
   {
-    name: 'create_skill',
-    description: 'Publish a new Skill (capability marker) to the Celaut on-chain registry. Builds a reputation opinion and either submits it (seed signer) or returns the unsigned tx (unsigned signer).',
+    name: 'create_objective',
+    description: 'Publish a new Objective (problem marker) to the Celaut on-chain registry. Builds a reputation opinion and either submits it (seed signer) or returns the unsigned tx (unsigned signer).',
     inputSchema: {
       type: 'object',
       properties: {
         mainBoxId: { type: 'string', description: 'Hex box id of the reputation profile box to spend from.' },
-        name: { type: 'string', description: 'Skill name.' },
-        prose: { type: 'string', description: 'Human-readable description of the skill.' },
+        name: { type: 'string', description: 'Objective name.' },
+        prose: { type: 'string', description: 'Human-readable description of the objective.' },
         formal: { type: 'string', description: 'Optional formal/spec definition.' },
         tags: { type: 'array', items: { type: 'string' }, description: 'Optional tags.' },
         domain: { type: 'string', description: 'Optional domain.' },
-        extendedSkillBoxIds: { type: 'array', items: { type: 'string' }, description: 'Optional parent skill box ids this extends.' },
+        extendedObjectiveBoxIds: { type: 'array', items: { type: 'string' }, description: 'Optional parent objective box ids this extends.' },
         sourceHash: { type: 'string', description: 'Optional hash of the source artifact.' },
         tokenAmount: { type: 'number', description: 'Reputation tokens to allocate (default 1).' }
       },
@@ -154,27 +154,27 @@ const TOOLS = [
   },
   {
     name: 'create_coverage',
-    description: 'Publish a Coverage opinion asserting that a service can address a given Skill.',
+    description: 'Publish a Coverage opinion asserting that a service can address a given Objective.',
     inputSchema: {
       type: 'object',
       properties: {
         mainBoxId: { type: 'string', description: 'Hex box id of the reputation profile box to spend from.' },
-        skillBoxId: { type: 'string', description: 'Hex box id of the Skill being covered.' },
+        objectiveBoxId: { type: 'string', description: 'Hex box id of the Objective being covered.' },
         serviceId: { type: 'string', description: 'Optional service identifier providing the coverage.' },
         tokenAmount: { type: 'number', description: 'Reputation tokens to allocate (default 1).' }
       },
-      required: ['mainBoxId', 'skillBoxId'],
+      required: ['mainBoxId', 'objectiveBoxId'],
       additionalProperties: false
     }
   },
   {
     name: 'create_benchmark',
-    description: 'Publish a Benchmark opinion defining how a given Skill is measured.',
+    description: 'Publish a Benchmark opinion defining how a given Objective is measured.',
     inputSchema: {
       type: 'object',
       properties: {
         mainBoxId: { type: 'string', description: 'Hex box id of the reputation profile box to spend from.' },
-        skillBoxId: { type: 'string', description: 'Hex box id of the Skill being benchmarked.' },
+        objectiveBoxId: { type: 'string', description: 'Hex box id of the Objective being benchmarked.' },
         name: { type: 'string', description: 'Benchmark name.' },
         description: { type: 'string', description: 'Benchmark description.' },
         caseDescriptors: { type: 'array', description: 'Ordered case descriptors.' },
@@ -182,7 +182,7 @@ const TOOLS = [
         sourceHash: { type: 'string', description: 'Optional hash of the source artifact.' },
         tokenAmount: { type: 'number', description: 'Reputation tokens to allocate (default 1).' }
       },
-      required: ['mainBoxId', 'skillBoxId', 'name'],
+      required: ['mainBoxId', 'objectiveBoxId', 'name'],
       additionalProperties: false
     }
   },
@@ -248,18 +248,18 @@ const TOOLS = [
 ];
 
 const HANDLERS = {
-  load_skills: async () => loadSkills(),
-  load_coverages: async ({ skillBoxId }) => loadCoverages(skillBoxId),
-  load_benchmarks: async ({ skillBoxId }) => loadBenchmarks(skillBoxId),
+  load_objectives: async () => loadObjectives(),
+  load_coverages: async ({ objectiveBoxId }) => loadCoverages(objectiveBoxId),
+  load_benchmarks: async ({ objectiveBoxId }) => loadBenchmarks(objectiveBoxId),
   load_results: async ({ benchmarkId }) => loadResults(benchmarkId),
   load_benchmark_coverages: async ({ benchmarkId }) => loadBenchmarkCoverages(benchmarkId),
-  load_skill_tree: async ({ skillBoxId, inherit }) =>
-    loadSkillTree(skillBoxId, undefined, { inherit: inherit !== false }),
+  load_objective_tree: async ({ objectiveBoxId, inherit }) =>
+    loadObjectiveTree(objectiveBoxId, undefined, { inherit: inherit !== false }),
   load_service_data: async ({ serviceId }) => loadServiceData(serviceId),
   load_service_metadata: async ({ serviceId }) => loadServiceMetadata(serviceId),
   // Publish handlers lazy-import the publish surface so the read-only tools keep
   // working even if the reputation-system/node dependency is unavailable.
-  create_skill: async (args) => (await import('./publish.mjs')).createSkill(args),
+  create_objective: async (args) => (await import('./publish.mjs')).createObjective(args),
   create_coverage: async (args) => (await import('./publish.mjs')).createCoverage(args),
   create_benchmark: async (args) => (await import('./publish.mjs')).createBenchmark(args),
   create_result: async (args) => (await import('./publish.mjs')).createResult(args),
@@ -270,7 +270,7 @@ const HANDLERS = {
 // ── Server bootstrap ───────────────────────────────────────────────────────
 
 const server = new Server(
-  { name: 'celaut-skills', version: '0.1.0' },
+  { name: 'celaut-registry', version: '0.1.0' },
   { capabilities: { tools: {} } }
 );
 

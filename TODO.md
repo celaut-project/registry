@@ -1,5 +1,5 @@
 Vamos a agregar en el MCP la acciones que publican en cadena:
-- Subir Skill.
+- Subir Objective.
 - Subir Benchmark.
 - Subir Coverage
 - Subir Result.

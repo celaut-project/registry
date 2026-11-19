@@ -4,7 +4,7 @@
  * `trustFramework.ts` for the assessment half they compose into.
  *
  * A Strict Definition is an improvable, brand-free formalization of ANY concept
- * — a skill, a benchmark space, or a *network* — expressed as three fields:
+ * — an objective, a benchmark space, or a *network* — expressed as three fields:
  *
  *   tag     a short machine key, `<kind>:<slug>` (e.g. "network:celaut-comm-domain")
  *   prose   the human-readable definition
@@ -33,7 +33,7 @@ import type { ActionAssessment, FrameworkContent } from './trustFramework';
  * this so consumers can dispatch on `formal`'s shape without guessing.
  */
 export enum ConceptKind {
-  Skill = 'skill',
+  Objective = 'objective',
   Benchmark = 'benchmark',
   Network = 'network'
 }

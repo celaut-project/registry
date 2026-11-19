@@ -58,7 +58,7 @@ describe('network definition creation flow (NetworkPage path)', () => {
   it('isNetworkDefinition returns false for a non-network kind', () => {
     const def = makeNetworkDefinition('my-net', 'My network.', SPEC);
     // isNetworkDefinition is a kind-check only; override kind to a different value
-    const wrongKind = { ...def, kind: ConceptKind.Skill };
+    const wrongKind = { ...def, kind: ConceptKind.Objective };
     expect(isNetworkDefinition(wrongKind as any)).toBe(false);
   });
 

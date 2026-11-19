@@ -5,11 +5,11 @@
 
 import type { DataProvider } from './dataProvider';
 import type {
-  Skill,
+  Objective,
   Coverage,
   Benchmark,
   Result,
-  SkillCreationInput,
+  ObjectiveCreationInput,
   CoverageCreationInput,
   BenchmarkCreationInput,
   ResultCreationInput,
@@ -17,12 +17,12 @@ import type {
   StrictDefinitionCreationInput,
   TrustFrameworkCreationInput
 } from './types';
-import { loadSkills as apiLoadSkills, loadCoverages as apiLoadCoverages, loadBenchmarkCoverages as apiLoadBenchmarkCoverages, loadBenchmarks as apiLoadBenchmarks, loadResults as apiLoadResults } from './api';
+import { loadObjectives as apiLoadObjectives, loadCoverages as apiLoadCoverages, loadBenchmarkCoverages as apiLoadBenchmarkCoverages, loadBenchmarks as apiLoadBenchmarks, loadResults as apiLoadResults } from './api';
 import { ApiError } from './types';
 import { create_profile, create_opinion } from 'reputation-system';
 import type { RPBox } from 'source-application';
 import {
-  SKILL_TYPE_ID,
+  OBJECTIVE_TYPE_ID,
   COVERAGE_TYPE_ID,
   BENCHMARK_TYPE_ID,
   RESULT_TYPE_ID,
@@ -46,34 +46,34 @@ function getMainBox(inputMainBox: unknown, entityName: string): RPBox {
 }
 
 class ErgoDataProvider implements DataProvider {
-  async loadSkills(): Promise<Skill[]> {
-    // LIGHTWEIGHT initial load. `apiLoadSkills()` returns skill boxes with
+  async loadObjectives(): Promise<Objective[]> {
+    // LIGHTWEIGHT initial load. `apiLoadObjectives()` returns objective boxes with
     // their names/tags/domain/prose/profileId/boxId already populated (and
     // EMPTY coverages/benchmarks). That is everything the gallery, search and
     // cards need to render — so we no longer eagerly fan out to the explorer
-    // to hydrate every skill's coverages/benchmarks/results up front. Instead
-    // each skill is hydrated on demand via `hydrateSkill()` when the user
+    // to hydrate every objective's coverages/benchmarks/results up front. Instead
+    // each objective is hydrated on demand via `hydrateObjective()` when the user
     // actually searches for or opens it.
     //
-    // NOTE: applySkillInheritance is intentionally SKIPPED here. It merges
-    // inherited coverages/benchmarks from extended skills, which requires the
-    // per-skill relations to already be hydrated. In the lightweight path
+    // NOTE: applyObjectiveInheritance is intentionally SKIPPED here. It merges
+    // inherited coverages/benchmarks from extended objectives, which requires the
+    // per-objective relations to already be hydrated. In the lightweight path
     // there is nothing to merge yet, so running it would be a no-op at best;
-    // inheritance is (re)applied lazily per skill during hydration instead.
-    return apiLoadSkills();
+    // inheritance is (re)applied lazily per objective during hydration instead.
+    return apiLoadObjectives();
   }
 
   /**
-   * Hydrate ONE skill's heavy relations on demand: its coverages, benchmarks,
-   * and each benchmark's results + benchmark-coverages. Idempotent — a skill
+   * Hydrate ONE objective's heavy relations on demand: its coverages, benchmarks,
+   * and each benchmark's results + benchmark-coverages. Idempotent — an objective
    * that is already hydrated returns immediately.
    */
-  async hydrateSkill(skill: Skill): Promise<void> {
-    if (skill.__hydrated) return;
+  async hydrateObjective(objective: Objective): Promise<void> {
+    if (objective.__hydrated) return;
 
     const [coverages, benchmarks] = await Promise.all([
-      apiLoadCoverages(skill.boxId),
-      apiLoadBenchmarks(skill.boxId)
+      apiLoadCoverages(objective.boxId),
+      apiLoadBenchmarks(objective.boxId)
     ]);
 
     await Promise.all(
@@ -87,39 +87,42 @@ class ErgoDataProvider implements DataProvider {
       })
     );
 
-    skill.coverages = coverages;
-    skill.benchmarks = benchmarks;
-    skill.resultCount = benchmarks.reduce(
+    objective.coverages = coverages;
+    objective.benchmarks = benchmarks;
+    objective.resultCount = benchmarks.reduce(
       (sum, benchmark) => sum + benchmark.results.length,
       0
     );
-    skill.__hydrated = true;
+    objective.__hydrated = true;
   }
 
-  async loadCoverages(skillBoxId: string): Promise<Coverage[]> {
-    return apiLoadCoverages(skillBoxId);
+  async loadCoverages(objectiveBoxId: string): Promise<Coverage[]> {
+    return apiLoadCoverages(objectiveBoxId);
   }
 
   async loadBenchmarkCoverages(benchmarkId: string): Promise<Coverage[]> {
     return apiLoadBenchmarkCoverages(benchmarkId);
   }
 
-  async loadBenchmarks(skillBoxId: string): Promise<Benchmark[]> {
-    return apiLoadBenchmarks(skillBoxId);
+  async loadBenchmarks(objectiveBoxId: string): Promise<Benchmark[]> {
+    return apiLoadBenchmarks(objectiveBoxId);
   }
 
   async loadResults(benchmarkId: string): Promise<Result[]> {
     return apiLoadResults(benchmarkId);
   }
 
-  async createSkill(input: SkillCreationInput): Promise<string> {
+  async createObjective(input: ObjectiveCreationInput): Promise<string> {
     // Nota: create_opinion suele requerir un tokenAmount (usamos reputationSupply o 1 por defecto)
-    // y, opcionalmente, un objeto al que hace referencia. Si es una habilidad raíz, se suele apuntar a sí misma o usar un ID vacío.
+    // y, opcionalmente, un objeto al que hace referencia. Si es un objetivo raíz, se suele apuntar a sí misma o usar un ID vacío.
+    if (!/^[0-9a-fA-F]{4,}$/.test(OBJECTIVE_TYPE_ID)) {
+      throw new Error('OBJECTIVE_TYPE_ID is still a placeholder; mint the Objective Type NFT and set it in src/lib/registry/core.mjs');
+    }
     const txId = await create_opinion(
       'https://api.ergoplatform.com',
       input.tokenAmount ?? 1,
-      SKILL_TYPE_ID,
-      '', // ID del objetivo. Una skill no apunta a nada en concreto.
+      OBJECTIVE_TYPE_ID,
+      '', // ID del objetivo. Un objetivo no apunta a nada en concreto.
       true,
       {
         name: input.name,
@@ -127,27 +130,27 @@ class ErgoDataProvider implements DataProvider {
         formal: input.formal ?? '',
         tags: input.tags,
         domain: input.domain,
-        extended_skill_boxes: input.extendedSkillBoxIds,
+        extended_objective_boxes: input.extendedObjectiveBoxIds,
         source_hash: input.sourceHash ?? null
       },
       LOCKED,
       // create_opinion requiere una RPBox. Si no viene en el input, se necesita una alternativa global o lanzar error.
-      getMainBox((input as any).mainBox, 'skill')
+      getMainBox((input as any).mainBox, 'objective')
     );
 
     if (!txId) {
-      throw new ApiError('Failed to create skill on-chain.', 'CREATE_SKILL_FAILED');
+      throw new ApiError('Failed to create objective on-chain.', 'CREATE_OBJECTIVE_FAILED');
     }
 
     return txId;
   }
 
   async createCoverage(input: CoverageCreationInput): Promise<string> {
-    // A coverage may target either the skill (default) or one of its
+    // A coverage may target either the objective (default) or one of its
     // benchmarks. When `benchmarkId` is set, the opinion points at the
     // benchmark box and records the benchmark id in its payload.
     const targetBenchmark = !!input.benchmarkId;
-    const objectPointer = targetBenchmark ? input.benchmarkId! : input.skillBoxId;
+    const objectPointer = targetBenchmark ? input.benchmarkId! : input.objectiveBoxId;
     const txId = await create_opinion(
       'https://api.ergoplatform.com',
       input.tokenAmount ?? 1,
@@ -155,7 +158,7 @@ class ErgoDataProvider implements DataProvider {
       objectPointer,
       true,
       {
-        skill_box_id: input.skillBoxId,
+        objective_box_id: input.objectiveBoxId,
         benchmark_id: input.benchmarkId ?? null,
         service_id: input.serviceId ?? null
       },
@@ -175,10 +178,10 @@ class ErgoDataProvider implements DataProvider {
       'https://api.ergoplatform.com',
       input.tokenAmount ?? 1,
       BENCHMARK_TYPE_ID,
-      input.skillBoxId,
+      input.objectiveBoxId,
       true,
       {
-        skill_box_id: input.skillBoxId,
+        objective_box_id: input.objectiveBoxId,
         name: input.name,
         description: input.description,
         case_descriptors: input.caseDescriptors.map((d) => ({

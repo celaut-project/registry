@@ -1,5 +1,5 @@
 /**
- * Multidimensional scoring for Celaut Skills.
+ * Multidimensional scoring for Celaut Registry.
  *
  * The domain model treats benchmark results as a tensor: each Result carries
  * `CaseExecutionData[]`, where every case has
@@ -23,7 +23,7 @@
  *                     separately; do not "fix" it here.)
  */
 
-import type { Skill, Benchmark, PerformanceMetric, CaseExecutionData } from './types';
+import type { Objective, Benchmark, PerformanceMetric, CaseExecutionData } from './types';
 
 /** One column of the comparison tensor — identifies (benchmark, metric). */
 export interface MetricColumn {
@@ -101,9 +101,9 @@ function stddev(values: number[], mean: number): number {
 
 /** ── Column / service discovery ───────────────────────────────────────────── */
 
-export function listMetricColumns(skill: Skill): MetricColumn[] {
+export function listMetricColumns(objective: Objective): MetricColumn[] {
   const cols: MetricColumn[] = [];
-  for (const bench of skill.benchmarks) {
+  for (const bench of objective.benchmarks) {
     const metrics = bench.performanceMetrics ?? [];
     metrics.forEach((m, i) => {
       cols.push({
@@ -118,12 +118,12 @@ export function listMetricColumns(skill: Skill): MetricColumn[] {
   return cols;
 }
 
-export function listServiceIds(skill: Skill): string[] {
+export function listServiceIds(objective: Objective): string[] {
   const ids = new Set<string>();
-  for (const cov of skill.coverages) {
+  for (const cov of objective.coverages) {
     if (cov.serviceId) ids.add(cov.serviceId);
   }
-  for (const bench of skill.benchmarks) {
+  for (const bench of objective.benchmarks) {
     for (const r of bench.results) {
       if (r.serviceId) ids.add(r.serviceId);
     }
@@ -211,15 +211,15 @@ export function aggregateMetricForService(
  *     This pushes high-trust benchmarks + heavily-vouched results to dominate.
  *   - Composite per service = Σ(weight × signedZ) / Σ(weight).
  */
-export function buildComparisonTensor(skill: Skill): ComparisonTensor {
-  const columns = listMetricColumns(skill);
-  const serviceIds = listServiceIds(skill);
+export function buildComparisonTensor(objective: Objective): ComparisonTensor {
+  const columns = listMetricColumns(objective);
+  const serviceIds = listServiceIds(objective);
 
   // 1. Fill raw cells.
   const rows: TensorRow[] = serviceIds.map((serviceId) => ({
     serviceId,
     cells: columns.map((col) => {
-      const bench = skill.benchmarks.find((b) => b.id === col.benchmarkId);
+      const bench = objective.benchmarks.find((b) => b.id === col.benchmarkId);
       if (!bench) return { value: null, resultsReputation: 0, caseCount: 0, resultCount: 0 };
       return aggregateMetricForService(bench, serviceId, col.metricIndex);
     }),
@@ -268,8 +268,8 @@ export function buildComparisonTensor(skill: Skill): ComparisonTensor {
 }
 
 /** Pick the row with the highest composite; null when no service has data. */
-export function pickBestService(skill: Skill): TensorRow | null {
-  const { rows } = buildComparisonTensor(skill);
+export function pickBestService(objective: Objective): TensorRow | null {
+  const { rows } = buildComparisonTensor(objective);
   let best: TensorRow | null = null;
   for (const row of rows) {
     if (row.cells.every((c) => c.value === null)) continue;

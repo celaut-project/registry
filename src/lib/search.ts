@@ -1,6 +1,6 @@
 /**
- * Client-side search over the loaded Skill catalog. No backend: the catalog is
- * small (loaded once from the chain into the `skills` store) and both indexes
+ * Client-side search over the loaded Objective catalog. No backend: the catalog is
+ * small (loaded once from the chain into the `objectives` store) and both indexes
  * below are cheap to rebuild whenever it changes.
  *
  * Two tiers:
@@ -14,25 +14,25 @@
  */
 import MiniSearch from 'minisearch';
 import Fuse from 'fuse.js';
-import type { Skill } from './types';
+import type { Objective } from './types';
 
 const SEARCH_FIELDS = ['name', 'prose', 'tags', 'domain'] as const;
 
-function extractField(skill: Skill, field: string): string {
-  const value = (skill as unknown as Record<string, unknown>)[field];
+function extractField(objective: Objective, field: string): string {
+  const value = (objective as unknown as Record<string, unknown>)[field];
   if (Array.isArray(value)) return value.join(' ');
   return typeof value === 'string' ? value : '';
 }
 
-let miniIndex: MiniSearch<Skill> | null = null;
-let fuseIndex: Fuse<Skill> | null = null;
-let indexedSkills: Skill[] = [];
+let miniIndex: MiniSearch<Objective> | null = null;
+let fuseIndex: Fuse<Objective> | null = null;
+let indexedObjectives: Objective[] = [];
 
-/** (Re)build both indexes over `skills`. Cheap enough to call on every load. */
-export function buildSearchIndex(skills: Skill[]): void {
-  indexedSkills = skills;
+/** (Re)build both indexes over `objectives`. Cheap enough to call on every load. */
+export function buildSearchIndex(objectives: Objective[]): void {
+  indexedObjectives = objectives;
 
-  miniIndex = new MiniSearch<Skill>({
+  miniIndex = new MiniSearch<Objective>({
     idField: 'boxId',
     fields: [...SEARCH_FIELDS],
     extractField,
@@ -43,9 +43,9 @@ export function buildSearchIndex(skills: Skill[]): void {
       boost: { name: 3, tags: 2, domain: 1.5, prose: 1 }
     }
   });
-  miniIndex.addAll(skills);
+  miniIndex.addAll(objectives);
 
-  fuseIndex = new Fuse(skills, {
+  fuseIndex = new Fuse(objectives, {
     keys: [
       { name: 'name', weight: 0.5 },
       { name: 'tags', weight: 0.3 },
@@ -64,19 +64,19 @@ export function buildSearchIndex(skills: Skill[]): void {
  * well). Searching each term separately and intersecting keeps "every term has
  * to match somewhere" while still tolerating a rough typo per term.
  */
-function fuseFallback(query: string): Skill[] {
+function fuseFallback(query: string): Objective[] {
   if (!fuseIndex) return [];
   const terms = query.split(/\s+/).filter(Boolean);
 
-  let matched: Set<Skill> | null = null;
+  let matched: Set<Objective> | null = null;
   for (const term of terms) {
     const termMatches = new Set(fuseIndex.search(term).map((result) => result.item));
     if (matched === null) {
       matched = termMatches;
     } else {
-      const intersection = new Set<Skill>();
-      for (const skill of matched) {
-        if (termMatches.has(skill)) intersection.add(skill);
+      const intersection = new Set<Objective>();
+      for (const objective of matched) {
+        if (termMatches.has(objective)) intersection.add(objective);
       }
       matched = intersection;
     }
@@ -85,15 +85,15 @@ function fuseFallback(query: string): Skill[] {
   return matched ? Array.from(matched) : [];
 }
 
-/** Search the last-built index. An empty/blank query returns every skill. */
-export function searchSkills(query: string): Skill[] {
+/** Search the last-built index. An empty/blank query returns every objective. */
+export function searchObjectives(query: string): Objective[] {
   const trimmed = query.trim();
-  if (!trimmed || !miniIndex || !fuseIndex) return indexedSkills;
+  if (!trimmed || !miniIndex || !fuseIndex) return indexedObjectives;
 
   const hits = miniIndex.search(trimmed);
   if (hits.length > 0) {
-    const byId = new Map(indexedSkills.map((skill) => [skill.boxId, skill]));
-    return hits.map((hit) => byId.get(String(hit.id))).filter((skill): skill is Skill => Boolean(skill));
+    const byId = new Map(indexedObjectives.map((objective) => [objective.boxId, objective]));
+    return hits.map((hit) => byId.get(String(hit.id))).filter((objective): objective is Objective => Boolean(objective));
   }
 
   return fuseFallback(trimmed);

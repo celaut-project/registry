@@ -1,5 +1,5 @@
 /**
- * Data access facade for Celaut Skills.
+ * Data access facade for Celaut Registry.
  * Routes calls to mock DB or real Ergo API based on demo mode setting.
  */
 
@@ -9,11 +9,11 @@ import { mockDb } from './mockDb';
 import { ergoProvider } from './ergoProvider';
 import type { DataProvider } from './dataProvider';
 import type {
-  Skill,
+  Objective,
   Coverage,
   Benchmark,
   Result,
-  SkillCreationInput,
+  ObjectiveCreationInput,
   CoverageCreationInput,
   BenchmarkCreationInput,
   ResultCreationInput,
@@ -27,19 +27,19 @@ function getProvider(): DataProvider {
   return get(demoMode) ? mockDb : ergoProvider;
 }
 
-/** Load all skills from the active provider. */
-export async function loadSkills(): Promise<Skill[]> {
-  return getProvider().loadSkills();
+/** Load all objectives from the active provider. */
+export async function loadObjectives(): Promise<Objective[]> {
+  return getProvider().loadObjectives();
 }
 
-/** Hydrate a single skill's heavy relations on demand (idempotent). */
-export async function hydrateSkill(skill: Skill): Promise<void> {
-  return getProvider().hydrateSkill(skill);
+/** Hydrate a single objective's heavy relations on demand (idempotent). */
+export async function hydrateObjective(objective: Objective): Promise<void> {
+  return getProvider().hydrateObjective(objective);
 }
 
-/** Load coverages for a given skill box ID. */
-export async function loadCoverages(skillBoxId: string): Promise<Coverage[]> {
-  return getProvider().loadCoverages(skillBoxId);
+/** Load coverages for a given objective box ID. */
+export async function loadCoverages(objectiveBoxId: string): Promise<Coverage[]> {
+  return getProvider().loadCoverages(objectiveBoxId);
 }
 
 /** Load coverages that target a given benchmark ID. */
@@ -47,9 +47,9 @@ export async function loadBenchmarkCoverages(benchmarkId: string): Promise<Cover
   return getProvider().loadBenchmarkCoverages(benchmarkId);
 }
 
-/** Load benchmarks for a given skill box ID. */
-export async function loadBenchmarks(skillBoxId: string): Promise<Benchmark[]> {
-  return getProvider().loadBenchmarks(skillBoxId);
+/** Load benchmarks for a given objective box ID. */
+export async function loadBenchmarks(objectiveBoxId: string): Promise<Benchmark[]> {
+  return getProvider().loadBenchmarks(objectiveBoxId);
 }
 
 /** Load results for a given benchmark ID. */
@@ -57,9 +57,9 @@ export async function loadResults(benchmarkId: string): Promise<Result[]> {
   return getProvider().loadResults(benchmarkId);
 }
 
-/** Create a new skill profile. */
-export async function createSkill(input: SkillCreationInput): Promise<string> {
-  return getProvider().createSkill(input);
+/** Create a new objective profile. */
+export async function createObjective(input: ObjectiveCreationInput): Promise<string> {
+  return getProvider().createObjective(input);
 }
 
 /** Create a new coverage opinion. */

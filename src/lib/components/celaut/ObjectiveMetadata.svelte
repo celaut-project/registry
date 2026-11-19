@@ -16,7 +16,7 @@
   }
 </script>
 
-<div class="skill-meta">
+<div class="objective-meta">
   <div class="meta-row">
     <span class="meta-label">Box ID</span>
     <span class="meta-value meta-mono">{boxId}</span>
@@ -37,7 +37,7 @@
 </div>
 
 <style lang="postcss">
-  .skill-meta {
+  .objective-meta {
     padding: 0.75rem 1rem;
     border-radius: 0.5rem;
     border: 1px solid hsl(var(--border));

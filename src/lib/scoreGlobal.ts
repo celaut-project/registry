@@ -1,9 +1,9 @@
 /**
  * Multi-Criteria Global Scoring System — implementation of SCORE.md.
  *
- * Computes a Service's global score WITHIN a Skill, combining verified empirical
+ * Computes a Service's global score WITHIN an Objective, combining verified empirical
  * performance (benchmark results, confidence-weighted) with the service's own
- * external reputation. Used to rank a skill's services and pick the recommended
+ * external reputation. Used to rank an objective's services and pick the recommended
  * one. See SCORE.md for the full mathematical specification; section references
  * below map each step to that document.
  *
@@ -14,7 +14,7 @@
  * structurally faithful; supplying user reputations only sharpens C_r.
  */
 
-import type { Skill, Benchmark } from './types';
+import type { Objective, Benchmark } from './types';
 import { collectCasePoints, listServiceIds, median } from './scoring';
 
 /** α — balances trust in the result's uploader vs the result's own reputation (§4A). */
@@ -44,7 +44,7 @@ export interface ScoreOptions {
 /**
  * Confidence Normalization W_e (SCORE.md §2): signed logarithmic map of a raw
  * reputation into [0, 1]. R≥0 → [0.5,1], R<0 → [0,0.5], R=0 → 0.5. nMax is the
- * max absolute reputation observed within the skill, keeping the scale
+ * max absolute reputation observed within the objective, keeping the scale
  * calibrated; when it is 0 every entity is neutral (0.5).
  */
 export function confidenceWeight(rRaw: number, nMax: number): number {
@@ -57,14 +57,14 @@ export function confidenceWeight(rRaw: number, nMax: number): number {
   return 0.5 - 0.5 * (Math.log(1 + Math.abs(rRaw)) / denom);
 }
 
-/** Max absolute reputation across every entity observed in the skill (the N_max calibrator). */
-function computeNMax(skill: Skill, profileReputations?: Map<string, number>): number {
+/** Max absolute reputation across every entity observed in the objective (the N_max calibrator). */
+function computeNMax(objective: Objective, profileReputations?: Map<string, number>): number {
   let nMax = 0;
   const track = (r: number | undefined | null) => {
     if (typeof r === 'number' && Number.isFinite(r)) nMax = Math.max(nMax, Math.abs(r));
   };
-  for (const cov of skill.coverages) track(cov.reputation);
-  for (const bench of skill.benchmarks) {
+  for (const cov of objective.coverages) track(cov.reputation);
+  for (const bench of objective.benchmarks) {
     track(bench.reputation);
     for (const r of bench.results) {
       track(r.reputation);
@@ -163,21 +163,21 @@ function performanceInBenchmark(
 }
 
 /**
- * Compute the global score for every service in the skill (SCORE.md §5):
+ * Compute the global score for every service in the objective (SCORE.md §5):
  *   Score_Perf(S) = Σ(W_B · P(S,B)) / Σ W_B               (§5.2)
  *   Score_Global  = β · Score_Perf + (1-β) · W_S          (§5.3)
  * A service with no empirical results is scored on its reputation alone (W_S),
  * so coverage-only / brand-new services still rank.
  */
-export function computeServiceScores(skill: Skill, opts: ScoreOptions = {}): ServiceScore[] {
+export function computeServiceScores(objective: Objective, opts: ScoreOptions = {}): ServiceScore[] {
   const { profileReputations } = opts;
-  const nMax = computeNMax(skill, profileReputations);
-  const serviceIds = listServiceIds(skill);
+  const nMax = computeNMax(objective, profileReputations);
+  const serviceIds = listServiceIds(objective);
 
   // Service reputation = the reputation on its coverage entry (direct or
   // result-derived; loadCoverages merges both).
   const covRepByService = new Map<string, number>();
-  for (const cov of skill.coverages) {
+  for (const cov of objective.coverages) {
     if (cov.serviceId) covRepByService.set(cov.serviceId, cov.reputation ?? 0);
   }
 
@@ -189,7 +189,7 @@ export function computeServiceScores(skill: Skill, opts: ScoreOptions = {}): Ser
     let perfDen = 0;
     let benchmarkCount = 0;
     let resultCount = 0;
-    for (const bench of skill.benchmarks) {
+    for (const bench of objective.benchmarks) {
       const p = performanceInBenchmark(bench, serviceId, nMax, profileReputations);
       if (!p) continue;
       const wB = confidenceWeight(bench.reputation ?? 0, nMax);
@@ -208,15 +208,15 @@ export function computeServiceScores(skill: Skill, opts: ScoreOptions = {}): Ser
 }
 
 /**
- * The single best service for a skill by global score (SCORE.md). Returns null
- * only when the skill has no services. Ties break by performance presence then
+ * The single best service for an objective by global score (SCORE.md). Returns null
+ * only when the objective has no services. Ties break by performance presence then
  * raw score; a sole service always wins.
  */
 export function pickBestServiceByScore(
-  skill: Skill,
+  objective: Objective,
   opts: ScoreOptions = {},
 ): ServiceScore | null {
-  const scores = computeServiceScores(skill, opts);
+  const scores = computeServiceScores(objective, opts);
   if (!scores.length) return null;
   return [...scores].sort(
     (a, b) =>

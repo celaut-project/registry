@@ -1,5 +1,5 @@
 /**
- * API/data layer for Celaut Skills.
+ * API/data layer for Celaut Registry.
  * Handles chain queries, box parsing, and demo data.
  */
 
@@ -7,7 +7,7 @@ import { hexToUtf8 } from './ergo/envs';
 import { get } from 'svelte/store';
 import { demoMode } from './config';
 import { fetchFileSourcesByHash } from 'source-application';
-import type { Skill, Coverage, Benchmark, Result, Descriptor, PerformanceMetric, ServiceData, ServiceMetadata } from './types';
+import type { Objective, Coverage, Benchmark, Result, Descriptor, PerformanceMetric, ServiceData, ServiceMetadata } from './types';
 import { ApiError, NetworkError, ParseError } from './types';
 import {
   searchBoxes,
@@ -20,7 +20,7 @@ import {
 // Shared hash predicate used below by resolveServiceInfoSources / parse helpers.
 // Lives in the framework-agnostic registry core (single source of truth, shared
 // with the MCP server); re-exported so app callers can import it from '$lib/api'.
-import { looksLikeBlake2bHash, applySkillInheritance as coreApplySkillInheritance } from './registry/core.mjs';
+import { looksLikeBlake2bHash, applyObjectiveInheritance as coreApplyObjectiveInheritance } from './registry/core.mjs';
 export { looksLikeBlake2bHash };
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -36,11 +36,9 @@ export const EXPLORER_API = 'https://api.ergoplatform.com';
  * drift. They are *placeholder* identifiers until real on-chain Type NFTs are
  * minted, so the chain query functions below short-circuit to `[]` meanwhile.
  */
-export const SKILL_TYPE_ID = 'ffce59c01b9c0c245005f9c2daf817607e912a3ececd5f61aaba48d30230f60c';
-export const BENCHMARK_TYPE_ID = 'f6480184daf3b7750a58e58319e12adc5266bd986eec0f57ac451c995a30f54d';
-export const RESULT_TYPE_ID = '49b26dc06b1680769477264d2e8e9bf561005236cde3097630bffcff631b7aef';
-export const COVERAGE_TYPE_ID = '1da6799e935cbb0fb14d359f06f23854c3d1bd509508948cc01b7b018dbbbdf5';
-/** Strict Definition (Tag-Prose-Formal): an improvable formalization of any concept — skill, benchmark space, or network. */
+import { OBJECTIVE_TYPE_ID, BENCHMARK_TYPE_ID, RESULT_TYPE_ID, COVERAGE_TYPE_ID } from './registry/core.mjs';
+export { OBJECTIVE_TYPE_ID, BENCHMARK_TYPE_ID, RESULT_TYPE_ID, COVERAGE_TYPE_ID };
+/** Strict Definition (Tag-Prose-Formal): an improvable formalization of any concept — objective, benchmark space, or network. */
 export const STRICT_DEFINITION_TYPE_ID = 'c3229193ee2e76d62c5d19d4f6a923802e6213b70e58d589d7a2d07aa19ebafe';
 /** Dependency and Trust Framework: Sigmaverse-standard KyA assessment; R5 → Strict Definition, R9 → trust/access structure. Scores derived off-chain. */
 export const DEPENDENCY_TRUST_FRAMEWORK_TYPE_ID = 'aeece0a2352363d9b232d9a21c6a32a276ab9eae3ab6cdd3fdad4f8f676637f0';
@@ -69,7 +67,7 @@ export function toHex(str: string): string {
 /**
  * True if a value looks like a real on-chain hex identifier (token id, box id,
  * type NFT id). Used to gate chain queries so placeholder strings like
- * "celaut:skill:v1" don't generate malformed Explorer requests.
+ * "celaut:objective:v1" don't generate malformed Explorer requests.
  */
 function isHexId(value: string): boolean {
   return /^[0-9a-fA-F]{4,}$/.test(value);
@@ -103,7 +101,7 @@ async function collectBoxes(
  *
  * The Explorer returns R9 (a Coll[Byte]) as a HEX string, so it must be
  * `hexToUtf8`-decoded before `JSON.parse` — parsing the raw hex throws and was
- * silently dropping every benchmark/coverage/result (only `parseSkillBox` was
+ * silently dropping every benchmark/coverage/result (only `parseObjectiveBox` was
  * decoding correctly). Throws on malformed JSON; callers wrap in try/catch.
  */
 function parseBoxR9(box: any): any {
@@ -196,33 +194,33 @@ function demoReputationFor(profileId: string): number {
 }
 
 /**
- * Merge coverages and benchmarks from the skills that each skill extends. The one
+ * Merge coverages and benchmarks from the objectives that each objective extends. The one
  * implementation is in `registry/core.mjs` (the MCP server uses it too); it marks what
  * is inherited with `inheritedFrom`.
  */
-export function applySkillInheritance(skills: Skill[]): Skill[] {
-  return coreApplySkillInheritance(skills) as Skill[];
+export function applyObjectiveInheritance(objectives: Objective[]): Objective[] {
+  return coreApplyObjectiveInheritance(objectives) as Objective[];
 }
 
 /**
- * Demo authoring shapes — the *input* shapes used inside getDemoSkills().
+ * Demo authoring shapes — the *input* shapes used inside getDemoObjectives().
  * They omit the bookkeeping fields (`profileId`, `reputation`) that
- * `enrichDemoSkills` fills in deterministically downstream.
+ * `enrichDemoObjectives` fills in deterministically downstream.
  */
 type DemoResult = Omit<Result, 'profileId' | 'reputation'>;
 type DemoBenchmark = Omit<Benchmark, 'profileId' | 'reputation' | 'results'> & {
   results: DemoResult[];
 };
 type DemoCoverage = Omit<Coverage, 'profileId' | 'reputation'>;
-type DemoSkillInput = Omit<Partial<Skill>, 'coverages' | 'benchmarks'> & {
+type DemoObjectiveInput = Omit<Partial<Objective>, 'coverages' | 'benchmarks'> & {
   boxId: string;
   coverages: DemoCoverage[];
   benchmarks: DemoBenchmark[];
 };
 
 /**
- * Inflate demo skills authored in the current native types.ts shape — assign
- * deterministic demo profileIds + reputations to every Skill / Coverage /
+ * Inflate demo objectives authored in the current native types.ts shape — assign
+ * deterministic demo profileIds + reputations to every Objective / Coverage /
  * Benchmark / Result so the UI has stable, deduped on-chain-ish identifiers.
  *
  * Demo authoring rules (no legacy compat — Josemi 2026-06-19):
@@ -231,25 +229,25 @@ type DemoSkillInput = Omit<Partial<Skill>, 'coverages' | 'benchmarks'> & {
  *   - Each Result MUST carry `data: CaseExecutionData[]` (one or more cases)
  *     with `metricsValues.length === performanceMetrics.length` and
  *     `caseMeta.length === caseDescriptors.length`.
- *   - `formal` is required on Skill (use "" if no JSON schema yet).
+ *   - `formal` is required on Objective (use "" if no JSON schema yet).
  */
-function enrichDemoSkills(rawSkills: DemoSkillInput[]): Skill[] {
-  return rawSkills.map((skill, skillIndex) => {
-    const skillProfileId = demoProfileId(`skill-${skillIndex + 1}-${skill.boxId}`);
+function enrichDemoObjectives(rawObjectives: DemoObjectiveInput[]): Objective[] {
+  return rawObjectives.map((objective, objectiveIndex) => {
+    const objectiveProfileId = demoProfileId(`objective-${objectiveIndex + 1}-${objective.boxId}`);
 
     return {
-      boxId: skill.boxId,
-      profileId: skillProfileId,
-      name: skill.name ?? 'Unnamed Skill',
-      prose: skill.prose ?? '',
-      formal: skill.formal ?? '',
-      tags: skill.tags ?? [],
-      domain: skill.domain ?? '',
-      extendedSkillBoxIds: skill.extendedSkillBoxIds ?? [],
-      sourceHash: skill.sourceHash,
-      reputation: demoReputationFor(skillProfileId),
+      boxId: objective.boxId,
+      profileId: objectiveProfileId,
+      name: objective.name ?? 'Unnamed Objective',
+      prose: objective.prose ?? '',
+      formal: objective.formal ?? '',
+      tags: objective.tags ?? [],
+      domain: objective.domain ?? '',
+      extendedObjectiveBoxIds: objective.extendedObjectiveBoxIds ?? [],
+      sourceHash: objective.sourceHash,
+      reputation: demoReputationFor(objectiveProfileId),
       resultCount: 0, // computed below
-      coverages: skill.coverages.map((coverage) => {
+      coverages: objective.coverages.map((coverage) => {
         const profileId = demoProfileId(`coverage-${coverage.serviceId || coverage.boxId}`);
         return {
           boxId: coverage.boxId,
@@ -258,12 +256,12 @@ function enrichDemoSkills(rawSkills: DemoSkillInput[]): Skill[] {
           reputation: demoReputationFor(profileId)
         } as Coverage;
       }),
-      benchmarks: skill.benchmarks.map((benchmark, benchmarkIndex) => {
-        const benchmarkProfileId = demoProfileId(`benchmark-${skill.boxId}-${benchmark.id}-${benchmarkIndex + 1}`);
+      benchmarks: objective.benchmarks.map((benchmark, benchmarkIndex) => {
+        const benchmarkProfileId = demoProfileId(`benchmark-${objective.boxId}-${benchmark.id}-${benchmarkIndex + 1}`);
         return {
           id: benchmark.id,
           profileId: benchmarkProfileId,
-          skillBoxId: skill.boxId,
+          objectiveBoxId: objective.boxId,
           name: benchmark.name,
           description: benchmark.description,
           caseDescriptors: benchmark.caseDescriptors,
@@ -300,15 +298,15 @@ function enrichDemoSkills(rawSkills: DemoSkillInput[]): Skill[] {
         } as Benchmark;
       })
     };
-  }).map((skill) => {
-    skill.resultCount = skill.benchmarks.reduce((sum, b) => sum + b.results.length, 0);
-    return skill;
+  }).map((objective) => {
+    objective.resultCount = objective.benchmarks.reduce((sum, b) => sum + b.results.length, 0);
+    return objective;
   });
 }
 // ── Box Parsing ──────────────────────────────────────────────────────────────
 
-/** Parse a raw Explorer box into a Skill, or null if unparseable. */
-export function parseSkillBox(box: any): Skill | null {
+/** Parse a raw Explorer box into an Objective, or null if unparseable. */
+export function parseObjectiveBox(box: any): Objective | null {
   try {
     const rawValue = box.additionalRegisters?.R9?.renderedValue || '';
     const potentialString = hexToUtf8(rawValue);
@@ -324,24 +322,24 @@ export function parseSkillBox(box: any): Skill | null {
     return {
       boxId: box.boxId,
       profileId,
-      name: parsed.name || 'Unnamed Skill',
+      name: parsed.name || 'Unnamed Objective',
       prose: parsed.prose || '',
       formal: parsed.formal || '',
       tags: parsed.tags || [],
       domain: parsed.domain || '',
-      extendedSkillBoxIds: parsed.extended_skill_boxes || [],
+      extendedObjectiveBoxIds: parsed.extended_objective_boxes || [],
       coverages: [],
       benchmarks: [],
       resultCount: 0,
       reputation: 0,
-      // Lightweight load: relations are empty until hydrateSkill() fetches them.
+      // Lightweight load: relations are empty until hydrateObjective() fetches them.
       // Mark the un-hydrated state explicitly so the detail view can hide its
       // benchmark/service-solution counters (which would otherwise read a
       // misleading 0) until the real, populated arrays are available.
       __hydrated: false,
       // Ergo boxes expose creationHeight; settlement/inclusion are fallbacks
       // when an explorer payload omits it. Drives canonical relationship topic
-      // ordering (newer skill first in `{skill_nueva}_{skill_antigua}`).
+      // ordering (newer objective first in `{newer_objective}_{older_objective}`).
       creationHeight:
         box.creationHeight ?? box.settlementHeight ?? box.inclusionHeight ?? 0
     };
@@ -353,41 +351,41 @@ export function parseSkillBox(box: any): Skill | null {
 // ── Chain Queries ────────────────────────────────────────────────────────────
 
 /**
- * Load skills from the Ergo blockchain.
+ * Load objectives from the Ergo blockchain.
  *
  * Delegates to `searchBoxes` from reputation-system (which hits the correct
  * `/api/v1/boxes/unspent/search` endpoint with properly Sigma-serialized
  * registers — the old hand-rolled payload here was returning HTTP 400). If
- * `SKILL_TYPE_ID` is still a placeholder string (not real hex), we skip the
+ * `OBJECTIVE_TYPE_ID` is still a placeholder string (not real hex), we skip the
  * query and return [] so live mode shows the empty state instead of erroring.
  */
-export async function loadSkills(): Promise<Skill[]> {
-  if (!isHexId(SKILL_TYPE_ID)) return [];
-  const boxes = await collectBoxes(SKILL_TYPE_ID, undefined);
-  const skills = boxes.map(parseSkillBox).filter(Boolean) as Skill[];
-  await hydrateReputations(skills);
-  return applySkillInheritance(skills);
+export async function loadObjectives(): Promise<Objective[]> {
+  if (!isHexId(OBJECTIVE_TYPE_ID)) return [];
+  const boxes = await collectBoxes(OBJECTIVE_TYPE_ID, undefined);
+  const objectives = boxes.map(parseObjectiveBox).filter(Boolean) as Objective[];
+  await hydrateReputations(objectives);
+  return applyObjectiveInheritance(objectives);
 }
 
 /**
- * Load *skill* coverages for a given skill box ID.
+ * Load *objective* coverages for a given objective box ID.
  *
- * A skill coverage is a service that addresses/solves the skill. A service can
- * become a skill coverage in two ways:
- *  1. Directly — a Coverage box (COVERAGE_TYPE_ID) pointing at the skill.
+ * An objective coverage is a service that addresses/solves the objective. A service can
+ * become an objective coverage in two ways:
+ *  1. Directly — a Coverage box (COVERAGE_TYPE_ID) pointing at the objective.
  *  2. Indirectly — by appearing as the `service_id` of a Result submitted
- *     against a Benchmark of this skill. Submitting a result demonstrably
- *     proves the service solves the skill, so it counts as a skill coverage.
+ *     against a Benchmark of this objective. Submitting a result demonstrably
+ *     proves the service solves the objective, so it counts as an objective coverage.
  *
  * NOTE: this is deliberately different from `loadBenchmarkCoverages`, which
- * lists benchmark *runners* — a Result's service is a skill *solution*, never a
+ * lists benchmark *runners* — a Result's service is an objective *solution*, never a
  * benchmark runner, so it is derived here but NOT there.
  *
  * Both sources are merged; direct coverages win, deduped by serviceId.
  */
-export async function loadCoverages(skillBoxId: string): Promise<Coverage[]> {
-  if (!isHexId(COVERAGE_TYPE_ID) || !isHexId(skillBoxId)) return [];
-  const boxes = await collectBoxes(COVERAGE_TYPE_ID, skillBoxId);
+export async function loadCoverages(objectiveBoxId: string): Promise<Coverage[]> {
+  if (!isHexId(COVERAGE_TYPE_ID) || !isHexId(objectiveBoxId)) return [];
+  const boxes = await collectBoxes(COVERAGE_TYPE_ID, objectiveBoxId);
   const direct = boxes
     .map((box: any) => {
       try {
@@ -406,8 +404,8 @@ export async function loadCoverages(skillBoxId: string): Promise<Coverage[]> {
     .filter(Boolean) as Coverage[];
   await hydrateReputations(direct);
 
-  // Indirect skill coverages: results → benchmarks → this skill.
-  const benchmarks = await loadBenchmarks(skillBoxId);
+  // Indirect objective coverages: results → benchmarks → this objective.
+  const benchmarks = await loadBenchmarks(objectiveBoxId);
   const resultLists = await Promise.all(benchmarks.map((b) => loadResults(b.id)));
   const results = resultLists.flat();
 
@@ -441,7 +439,7 @@ export async function loadCoverages(skillBoxId: string): Promise<Coverage[]> {
  * Load coverages that target a Benchmark (object pointer = benchmarkId).
  *
  * Only explicit Coverage boxes published against the benchmark id count. A
- * service that submitted a Result to this benchmark is a skill *solution*
+ * service that submitted a Result to this benchmark is an objective *solution*
  * (ranked in Results), not a benchmark *runner*, so it is deliberately NOT
  * derived into the coverage list — the two are different purposes.
  */
@@ -514,10 +512,10 @@ function normalizeMetric(raw: any): PerformanceMetric {
   };
 }
 
-/** Load benchmarks for a given skill box ID. */
-export async function loadBenchmarks(skillBoxId: string): Promise<Benchmark[]> {
-  if (!isHexId(BENCHMARK_TYPE_ID) || !isHexId(skillBoxId)) return [];
-  const boxes = await collectBoxes(BENCHMARK_TYPE_ID, skillBoxId);
+/** Load benchmarks for a given objective box ID. */
+export async function loadBenchmarks(objectiveBoxId: string): Promise<Benchmark[]> {
+  if (!isHexId(BENCHMARK_TYPE_ID) || !isHexId(objectiveBoxId)) return [];
+  const boxes = await collectBoxes(BENCHMARK_TYPE_ID, objectiveBoxId);
   console.log("Benchmark boxes:", boxes);
   const benchmarks = boxes
     .map((box: any) => {
@@ -527,7 +525,7 @@ export async function loadBenchmarks(skillBoxId: string): Promise<Benchmark[]> {
         return {
           id: box.boxId,
           profileId,
-          skillBoxId,
+          objectiveBoxId,
           name: parsed.name || 'Unnamed Benchmark',
           description: parsed.description || '',
           caseDescriptors: Array.isArray(parsed.case_descriptors)
@@ -670,7 +668,7 @@ export async function loadTrustFrameworks(strictDefBoxId: string): Promise<Trust
 //   - source : R9 is a bare blake2b256 hash; the full fragment lives off-chain in
 //     `sources`, resolved via the source-application registry (looksLikeBlake2bHash
 //     is how we detect this mode — simply "the payload is a hash string").
-// This lets the skills UI show a service's api/network/architecture/name without
+// This lets the objectives UI show a service's api/network/architecture/name without
 // downloading the whole service.
 
 /** Decode a Service* box R9 into `{ mode, sourceHash?, content }`. */
@@ -973,18 +971,18 @@ function getDemoServiceMetadata(serviceId: string): ServiceMetadata[] {
 // ── Demo Data ────────────────────────────────────────────────────────────────
 
 /**
- * Single-metric, descriptor-less benchmark shape. Used for the demo skills
+ * Single-metric, descriptor-less benchmark shape. Used for the demo objectives
  * that semantically measure ONE thing across UNDIFFERENTIATED runs (e.g.
  * "Sharpe ratio", "F1 score"). Keeps authoring concise while still producing
  * native multi-case shape — every result lifts to `data: [{ caseMeta: [],
  * metricsValues: [value] }]`.
  *
- * For genuinely multi-dimensional benchmarks (see skill demo-008) author the
+ * For genuinely multi-dimensional benchmarks (see objective demo-008) author the
  * caseDescriptors / performanceMetrics / data arrays directly.
  */
 function singleMetricBenchmark(opts: {
   id: string;
-  skillBoxId: string;
+  objectiveBoxId: string;
   name: string;
   description: string;
   metricName: string;
@@ -996,8 +994,8 @@ function singleMetricBenchmark(opts: {
 }): Benchmark {
   return {
     id: opts.id,
-    profileId: '', // filled in by enrichDemoSkills
-    skillBoxId: opts.skillBoxId,
+    profileId: '', // filled in by enrichDemoObjectives
+    objectiveBoxId: opts.objectiveBoxId,
     name: opts.name,
     description: opts.description,
     caseDescriptors: [],
@@ -1005,14 +1003,14 @@ function singleMetricBenchmark(opts: {
     sourceHash: opts.sourceHash,
     coverages: (opts.coverages ?? []).map((c) => ({
       boxId: c.boxId,
-      profileId: '', // filled in by enrichDemoSkills
+      profileId: '', // filled in by enrichDemoObjectives
       serviceId: c.serviceId,
       benchmarkId: opts.id,
       reputation: 0
     })),
     results: opts.results.map((r) => ({
       id: r.id,
-      profileId: '', // filled in by enrichDemoSkills
+      profileId: '', // filled in by enrichDemoObjectives
       benchmarkId: opts.id,
       serviceId: r.serviceId,
       data: [{ caseMeta: [], metricsValues: [r.value] }],
@@ -1023,17 +1021,17 @@ function singleMetricBenchmark(opts: {
   };
 }
 
-/** Demo skills for local development and fallback when chain is unavailable. */
-export function getDemoSkills(): Skill[] {
-  const rawSkills: DemoSkillInput[] = [
-    // ── Skill 1a: XAU/BTC by Author A ──
+/** Demo objectives for local development and fallback when chain is unavailable. */
+export function getDemoObjectives(): Objective[] {
+  const rawObjectives: DemoObjectiveInput[] = [
+    // ── Objective 1a: XAU/BTC by Author A ──
     {
       boxId: 'demo-001',
       name: 'Optimal XAU/BTC Performance',
       prose: 'Maximize risk-adjusted returns on the XAU/BTC pair using on-chain verifiable strategies. Agents must demonstrate consistent alpha generation across bull and bear regimes with transparent position tracking.',
       tags: ['trading', 'gold', 'bitcoin', 'risk-management'],
       domain: 'finance',
-      extendedSkillBoxIds: [],
+      extendedObjectiveBoxIds: [],
       sourceHash: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2',
       coverages: [
         { boxId: 'cov-001', serviceId: 'QmXf39bC4F7dNK2PwAjQgHh1Vy8cZ9b2a' },
@@ -1042,7 +1040,7 @@ export function getDemoSkills(): Skill[] {
       benchmarks: [
         singleMetricBenchmark({
           id: 'bench-001',
-          skillBoxId: 'demo-001',
+          objectiveBoxId: 'demo-001',
           name: 'Sharpe Ratio (30d rolling)',
           description: 'Measures risk-adjusted return over a 30-day rolling window. Higher Sharpe ratios indicate better risk-adjusted performance.',
           metricName: 'sharpe_ratio',
@@ -1061,7 +1059,7 @@ export function getDemoSkills(): Skill[] {
         }),
         singleMetricBenchmark({
           id: 'bench-002',
-          skillBoxId: 'demo-001',
+          objectiveBoxId: 'demo-001',
           name: 'Max Drawdown',
           description: 'Maximum observed loss from peak to trough. Lower is better — measures worst-case risk.',
           metricName: 'max_drawdown_pct',
@@ -1075,21 +1073,21 @@ export function getDemoSkills(): Skill[] {
       ],
       resultCount: 7
     },
-    // ── Skill 1b: XAU/BTC by Author B (same topic, different author) ──
+    // ── Objective 1b: XAU/BTC by Author B (same topic, different author) ──
     {
       boxId: 'demo-001b',
       name: 'Optimal XAU/BTC Performance',
       prose: 'Gold-Bitcoin pair trading optimization with focus on low-latency execution and MEV protection. Targets sub-second arbitrage across centralized and decentralized venues.',
       tags: ['trading', 'gold', 'bitcoin', 'arbitrage', 'mev'],
       domain: 'finance',
-      extendedSkillBoxIds: ['demo-001'],
+      extendedObjectiveBoxIds: ['demo-001'],
       coverages: [
         { boxId: 'cov-010', serviceId: 'QmJ5wN8kFpL3VyR2tC7mXq9eDf4bZa6h3' }
       ],
       benchmarks: [
         singleMetricBenchmark({
           id: 'bench-010',
-          skillBoxId: 'demo-001b',
+          objectiveBoxId: 'demo-001b',
           name: 'Execution Latency',
           description: 'Average order execution latency in milliseconds. Lower is better.',
           metricName: 'latency_ms',
@@ -1103,14 +1101,14 @@ export function getDemoSkills(): Skill[] {
       ],
       resultCount: 3
     },
-    // ── Skill 2: Sat-sorter ──
+    // ── Objective 2: Sat-sorter ──
     {
       boxId: 'demo-002',
       name: 'Sat-sorter',
       prose: 'Sort and classify UTXOs by satoshi value for optimal fee management. Agents should minimize transaction costs while maintaining privacy guarantees through intelligent UTXO selection and consolidation.',
       tags: ['utxo', 'optimization', 'fees', 'privacy'],
       domain: 'infrastructure',
-      extendedSkillBoxIds: [],
+      extendedObjectiveBoxIds: [],
       sourceHash: '7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b',
       coverages: [
         { boxId: 'cov-003', serviceId: 'QmP2rV6nKdF8WxL4tA9mYq3eBs5jUc7g2' }
@@ -1118,7 +1116,7 @@ export function getDemoSkills(): Skill[] {
       benchmarks: [
         singleMetricBenchmark({
           id: 'bench-003',
-          skillBoxId: 'demo-002',
+          objectiveBoxId: 'demo-002',
           name: 'Fee Savings (%)',
           description: 'Percentage of fees saved compared to naive UTXO selection. Higher is better.',
           metricName: 'fee_savings_pct',
@@ -1132,20 +1130,20 @@ export function getDemoSkills(): Skill[] {
       ],
       resultCount: 3
     },
-    // ── Skill 3: Sentiment Analysis ──
+    // ── Objective 3: Sentiment Analysis ──
     {
       boxId: 'demo-003',
       name: 'On-chain Sentiment Analysis',
       prose: 'Classify community sentiment from forum discussions, social media, and on-chain governance proposals into structured signals. Must handle multi-language input and provide confidence scores with explainability.',
       tags: ['nlp', 'sentiment', 'community', 'governance'],
       domain: 'analytics',
-      extendedSkillBoxIds: ['demo-001'],
+      extendedObjectiveBoxIds: ['demo-001'],
       sourceHash: '1122334455667788990011223344556677889900aabbccddeeff00112233445566',
       coverages: [],
       benchmarks: [
         singleMetricBenchmark({
           id: 'bench-004',
-          skillBoxId: 'demo-003',
+          objectiveBoxId: 'demo-003',
           name: 'Classification Accuracy',
           description: 'Accuracy on the Celaut Sentiment Corpus v2 test set. Higher is better.',
           metricName: 'accuracy',
@@ -1159,14 +1157,14 @@ export function getDemoSkills(): Skill[] {
       ],
       resultCount: 3
     },
-    // ── Skill 4: MEV Detection ──
+    // ── Objective 4: MEV Detection ──
     {
       boxId: 'demo-004',
       name: 'MEV Detection & Prevention',
       prose: 'Detect and prevent miner extractable value (MEV) attacks including front-running, sandwich attacks, and transaction reordering on Ergo and EVM chains. Agents must provide real-time mempool monitoring and transaction shielding.',
       tags: ['mev', 'security', 'mempool', 'front-running'],
       domain: 'security',
-      extendedSkillBoxIds: ['demo-003'],
+      extendedObjectiveBoxIds: ['demo-003'],
       coverages: [
         { boxId: 'cov-004', serviceId: 'QmA3xK8pNfD7WyL2tB5mRa9jUc4eHb6g1' },
         { boxId: 'cov-005', serviceId: 'QmB7wP5pMdE9VxR1sC3nYq8eDf2bZa4h6' },
@@ -1175,7 +1173,7 @@ export function getDemoSkills(): Skill[] {
       benchmarks: [
         singleMetricBenchmark({
           id: 'bench-005',
-          skillBoxId: 'demo-004',
+          objectiveBoxId: 'demo-004',
           name: 'Detection Rate',
           description: 'Percentage of MEV attacks correctly detected in test mempool. Higher is better.',
           metricName: 'detection_rate_pct',
@@ -1191,21 +1189,21 @@ export function getDemoSkills(): Skill[] {
       ],
       resultCount: 5
     },
-    // ── Skill 4b: MEV Detection by Author B (same topic, different author) ──
+    // ── Objective 4b: MEV Detection by Author B (same topic, different author) ──
     {
       boxId: 'demo-004b',
       name: 'MEV Detection & Prevention',
       prose: 'Comprehensive MEV protection suite for Ergo-based DEXes. Focuses on sandwich attack prevention with configurable slippage bounds and private mempool routing.',
       tags: ['mev', 'security', 'dex', 'ergo'],
       domain: 'security',
-      extendedSkillBoxIds: ['demo-004'],
+      extendedObjectiveBoxIds: ['demo-004'],
       coverages: [
         { boxId: 'cov-011', serviceId: 'QmF8tN3pKfD2WxL5tA4mRq7eBs6jUc9g1' }
       ],
       benchmarks: [
         singleMetricBenchmark({
           id: 'bench-011',
-          skillBoxId: 'demo-004b',
+          objectiveBoxId: 'demo-004b',
           name: 'False Positive Rate',
           description: 'Percentage of legitimate transactions incorrectly flagged as MEV. Lower is better.',
           metricName: 'false_positive_pct',
@@ -1219,21 +1217,21 @@ export function getDemoSkills(): Skill[] {
       ],
       resultCount: 3
     },
-    // ── Skill 5: Cross-Chain Liquidity Routing ──
+    // ── Objective 5: Cross-Chain Liquidity Routing ──
     {
       boxId: 'demo-005',
       name: 'Cross-Chain Liquidity Routing',
       prose: 'Find optimal liquidity paths across decentralized exchanges on Ergo, Ethereum, and Cardano. Agents must account for slippage, bridge fees, gas costs, and execution latency to maximize net output for multi-hop swaps.',
       tags: ['defi', 'liquidity', 'routing', 'cross-chain', 'dex'],
       domain: 'finance',
-      extendedSkillBoxIds: ['demo-004'],
+      extendedObjectiveBoxIds: ['demo-004'],
       coverages: [
         { boxId: 'cov-007', serviceId: 'QmG5xK2pNdF9WyL7tB3mRa1jUc6eHb4g8' }
       ],
       benchmarks: [
         singleMetricBenchmark({
           id: 'bench-006',
-          skillBoxId: 'demo-005',
+          objectiveBoxId: 'demo-005',
           name: 'Routing Efficiency',
           description: 'Percentage of optimal output achieved on standard test routes. Higher is better.',
           metricName: 'efficiency_pct',
@@ -1247,14 +1245,14 @@ export function getDemoSkills(): Skill[] {
       ],
       resultCount: 3
     },
-    // ── Skill 6: Smart Contract Scanner ──
+    // ── Objective 6: Smart Contract Scanner ──
     {
       boxId: 'demo-006',
       name: 'Smart Contract Vulnerability Scanner',
       prose: 'Automated audit of ErgoScript and Plutus smart contracts for common vulnerability patterns: integer overflow, replay attacks, box value manipulation, and register injection. Must generate detailed reports with severity scoring and remediation steps.',
       tags: ['audit', 'ergoscript', 'vulnerability', 'smart-contracts'],
       domain: 'security',
-      extendedSkillBoxIds: ['demo-005'],
+      extendedObjectiveBoxIds: ['demo-005'],
       sourceHash: 'c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4',
       coverages: [
         { boxId: 'cov-008', serviceId: 'QmK1xK5pNfD4WyL9tB2mRa8jUc3eHb7g6' },
@@ -1263,7 +1261,7 @@ export function getDemoSkills(): Skill[] {
       benchmarks: [
         singleMetricBenchmark({
           id: 'bench-007',
-          skillBoxId: 'demo-006',
+          objectiveBoxId: 'demo-006',
           name: 'Vulnerability Detection F1',
           description: 'F1 score on the Celaut Contract Vulnerability Corpus. Higher is better.',
           metricName: 'f1_score',
@@ -1278,15 +1276,15 @@ export function getDemoSkills(): Skill[] {
       ],
       resultCount: 3
     },
-    // ── Stress Test: Image Classification — 3 different authors, same skill name ──
-    // ── Skill 7a: Image Classification by Author A ──
+    // ── Stress Test: Image Classification — 3 different authors, same objective name ──
+    // ── Objective 7a: Image Classification by Author A ──
     {
       boxId: 'demo-img-001',
       name: 'Image Classification',
       prose: 'General-purpose image classification service supporting ImageNet-1k categories. Optimized for throughput on GPU clusters with batch inference support and automatic model selection.',
       tags: ['vision', 'classification', 'imagenet', 'gpu'],
       domain: 'analytics',
-      extendedSkillBoxIds: [],
+      extendedObjectiveBoxIds: [],
       sourceHash: 'f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7',
       coverages: [
         { boxId: 'cov-img-001', serviceId: 'QmImg1A2B3C4D5E6F7G8H9I0J1K2L3M4N' },
@@ -1295,7 +1293,7 @@ export function getDemoSkills(): Skill[] {
       benchmarks: [
         singleMetricBenchmark({
           id: 'bench-img-001',
-          skillBoxId: 'demo-img-001',
+          objectiveBoxId: 'demo-img-001',
           name: 'Top-1 Accuracy (ImageNet-1k)',
           description: 'Top-1 classification accuracy on the ImageNet-1k validation set. Higher is better.',
           metricName: 'accuracy_pct',
@@ -1311,7 +1309,7 @@ export function getDemoSkills(): Skill[] {
         }),
         singleMetricBenchmark({
           id: 'bench-img-002',
-          skillBoxId: 'demo-img-001',
+          objectiveBoxId: 'demo-img-001',
           name: 'Inference Speed',
           description: 'Average inference time per image in milliseconds on an A100 GPU. Lower is better.',
           metricName: 'latency_ms',
@@ -1326,14 +1324,14 @@ export function getDemoSkills(): Skill[] {
       ],
       resultCount: 9
     },
-    // ── Skill 7b: Image Classification by Author B ──
+    // ── Objective 7b: Image Classification by Author B ──
     {
       boxId: 'demo-img-002',
       name: 'Image Classification',
       prose: 'Medical image classification specializing in radiology scans (X-ray, CT, MRI). HIPAA-compliant inference pipeline with explainability via GradCAM attention maps and confidence calibration.',
       tags: ['vision', 'classification', 'medical', 'radiology', 'explainability'],
       domain: 'analytics',
-      extendedSkillBoxIds: ['demo-img-001'],
+      extendedObjectiveBoxIds: ['demo-img-001'],
       sourceHash: 'bb22cc33dd44ee55ff66aa77bb88cc99dd00ee11ff22aa33bb44cc55dd66ee77',
       coverages: [
         { boxId: 'cov-img-003', serviceId: 'QmMed1F7G8H9I0J1K2L3M4N5O6P7Q8R9S' }
@@ -1341,7 +1339,7 @@ export function getDemoSkills(): Skill[] {
       benchmarks: [
         singleMetricBenchmark({
           id: 'bench-img-003',
-          skillBoxId: 'demo-img-002',
+          objectiveBoxId: 'demo-img-002',
           name: 'F1 Score (Chest X-ray)',
           description: 'F1 score on the CheXpert multi-label classification benchmark. Higher is better.',
           metricName: 'f1_score',
@@ -1355,14 +1353,14 @@ export function getDemoSkills(): Skill[] {
       ],
       resultCount: 3
     },
-    // ── Skill 7c: Image Classification by Author C ──
+    // ── Objective 7c: Image Classification by Author C ──
     {
       boxId: 'demo-img-003',
       name: 'Image Classification',
       prose: 'Edge-optimized image classification for IoT and embedded devices. Sub-5ms inference on ARM Cortex-M7 with INT8 quantization. Targets industrial quality inspection and anomaly detection use cases.',
       tags: ['vision', 'classification', 'edge', 'iot', 'quantization'],
       domain: 'infrastructure',
-      extendedSkillBoxIds: ['demo-img-002'],
+      extendedObjectiveBoxIds: ['demo-img-002'],
       coverages: [
         { boxId: 'cov-img-004', serviceId: 'QmEdge1G8H9I0J1K2L3M4N5O6P7Q8R9S0' },
         { boxId: 'cov-img-005', serviceId: 'QmEdge2H9I0J1K2L3M4N5O6P7Q8R9S0T1' },
@@ -1371,7 +1369,7 @@ export function getDemoSkills(): Skill[] {
       benchmarks: [
         singleMetricBenchmark({
           id: 'bench-img-004',
-          skillBoxId: 'demo-img-003',
+          objectiveBoxId: 'demo-img-003',
           name: 'Accuracy (MVTec AD)',
           description: 'Classification accuracy on the MVTec Anomaly Detection dataset. Higher is better.',
           metricName: 'accuracy_pct',
@@ -1385,7 +1383,7 @@ export function getDemoSkills(): Skill[] {
         }),
         singleMetricBenchmark({
           id: 'bench-img-005',
-          skillBoxId: 'demo-img-003',
+          objectiveBoxId: 'demo-img-003',
           name: 'Edge Inference Latency',
           description: 'Inference time per image in milliseconds on ARM Cortex-M7 (STM32H7). Lower is better.',
           metricName: 'latency_ms',
@@ -1399,7 +1397,7 @@ export function getDemoSkills(): Skill[] {
       ],
       resultCount: 7
     },
-    // ── Skill 8: LLM Inference — NATIVE multi-descriptor / multi-metric ──
+    // ── Objective 8: LLM Inference — NATIVE multi-descriptor / multi-metric ──
     // Demonstrates the post-2026-06-18 tensor shape: each benchmark declares
     // caseDescriptors[] (problem axes) and performanceMetrics[] (measurement
     // axes), and each Result.data is a list of cases sweeping the descriptor
@@ -1410,7 +1408,7 @@ export function getDemoSkills(): Skill[] {
       prose: 'Serve large-language-model completions with bounded latency, predictable cost, and reproducible quality. Agents must handle batched inference across varying context lengths and model sizes; results are reported per (model_size, context_tokens, batch_size) configuration so consumers can pick the best service for their workload.',
       tags: ['llm', 'inference', 'serving', 'gpu'],
       domain: 'analytics',
-      extendedSkillBoxIds: [],
+      extendedObjectiveBoxIds: [],
       sourceHash: '8a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7008',
       coverages: [
         { boxId: 'cov-llm-a', serviceId: 'QmLLM-A-fast-gpu' },
@@ -1420,7 +1418,7 @@ export function getDemoSkills(): Skill[] {
       benchmarks: [
         {
           id: 'bench-llm-perf',
-          skillBoxId: 'demo-008',
+          objectiveBoxId: 'demo-008',
           name: 'Inference Performance Grid',
           description: 'Latency, throughput, and cost across model size, context length, and batch size. Cases sweep a 2×3×2 grid; metrics are independent dimensions.',
           // NEW SHAPE: native multi-descriptor + multi-metric.
@@ -1508,7 +1506,7 @@ export function getDemoSkills(): Skill[] {
         },
         {
           id: 'bench-llm-quality',
-          skillBoxId: 'demo-008',
+          objectiveBoxId: 'demo-008',
           name: 'Quality Grid (MMLU + HumanEval)',
           description: 'Quality across model size on two evaluation suites. caseMeta = [model_size_b, eval_suite_id] where 0 = MMLU, 1 = HumanEval.',
           caseDescriptors: [
@@ -1562,7 +1560,7 @@ export function getDemoSkills(): Skill[] {
       ],
       resultCount: 7
     },
-    // ── Skill: MoneyMaker (a tasteful little joke) ──
+    // ── Objective: MoneyMaker (a tasteful little joke) ──
     // Hand the agent $100 and full autonomy; the only acceptance criterion is
     // ending with more money than it started with. Demonstrates a benchmark
     // that carries a real caseDescriptor (starting_capital_usd) alongside two
@@ -1574,7 +1572,7 @@ export function getDemoSkills(): Skill[] {
       formal: '',
       tags: ['money', 'autonomy', 'trading', 'just-make-number-go-up'],
       domain: 'finance',
-      extendedSkillBoxIds: [],
+      extendedObjectiveBoxIds: [],
       sourceHash: 'm0n3yc0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7m0n',
       coverages: [
         { boxId: 'cov-mm-001', serviceId: 'QmM0neyMaker9000xK2PwAjQgHh1Vy8cZ9b2a' },
@@ -1583,7 +1581,7 @@ export function getDemoSkills(): Skill[] {
       benchmarks: [
         {
           id: 'bench-mm-001',
-          skillBoxId: 'demo-moneymaker',
+          objectiveBoxId: 'demo-moneymaker',
           name: 'Return on the $100 Float',
           description: 'Start the agent with a fixed cash float (the case descriptor) and let it run for a day. Net profit in USD is what matters; we also clock how long it took to double the money.',
           caseDescriptors: [
@@ -1619,9 +1617,9 @@ export function getDemoSkills(): Skill[] {
         },
         singleMetricBenchmark({
           id: 'bench-mm-002',
-          skillBoxId: 'demo-moneymaker',
+          objectiveBoxId: 'demo-moneymaker',
           name: 'Did Not Lose It All Rate',
-          description: 'Share of runs that ended at or above the starting float. The whole point of the skill, really. Higher is better.',
+          description: 'Share of runs that ended at or above the starting float. The whole point of the objective, really. Higher is better.',
           metricName: 'survival_rate_pct',
           higherIsBetter: true,
           results: [
@@ -1634,5 +1632,5 @@ export function getDemoSkills(): Skill[] {
     }
   ];
 
-  return enrichDemoSkills(rawSkills);
+  return enrichDemoObjectives(rawObjectives);
 }

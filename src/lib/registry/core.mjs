@@ -2,7 +2,7 @@
 // MCP server; it mirrors the shapes documented in src/lib/types, but is not
 // itself TypeScript-checked (it must run untranspiled under bare Node).
 /**
- * Celaut Skills registry — framework-agnostic data core.
+ * Celaut Registry — framework-agnostic data core.
  *
  * This is the SINGLE source of truth for the on-chain registry's read layer:
  * the Type NFT ids, the Explorer box search, the R9 parsers, and the `load_*`
@@ -22,7 +22,15 @@
 import { SColl, SByte } from '@fleet-sdk/serializer';
 
 // ── Type NFT ids (single source of truth) ──────────────────────────────────
-export const SKILL_TYPE_ID = 'ffce59c01b9c0c245005f9c2daf817607e912a3ececd5f61aaba48d30230f60c';
+// PLACEHOLDER (not hex): the Objective type NFT is re-minted by the maintainer; paste the
+// minted id here. Until then isHexId() fails and the load_* functions return [].
+export const OBJECTIVE_TYPE_ID = 'REPLACE_WITH_MINTED_OBJECTIVE_TYPE_NFT_ID';
+
+let activeObjectiveTypeId = OBJECTIVE_TYPE_ID;
+/** Test hook: inject an objective type id while the real one is a placeholder. */
+export function __setObjectiveTypeIdForTests(id = OBJECTIVE_TYPE_ID) {
+  activeObjectiveTypeId = id;
+}
 export const BENCHMARK_TYPE_ID = 'f6480184daf3b7750a58e58319e12adc5266bd986eec0f57ac451c995a30f54d';
 export const RESULT_TYPE_ID = '49b26dc06b1680769477264d2e8e9bf561005236cde3097630bffcff631b7aef';
 export const COVERAGE_TYPE_ID = '1da6799e935cbb0fb14d359f06f23854c3d1bd509508948cc01b7b018dbbbdf5';
@@ -187,20 +195,20 @@ export function deriveProfileId(box, parsed) {
 
 // ── load_* (mirror src/lib/types shapes) ────────────────────────────────────
 
-export async function loadSkills(explorerUri = DEFAULT_EXPLORER_API) {
-  if (!isHexId(SKILL_TYPE_ID)) return [];
-  const boxes = await collectBoxes(SKILL_TYPE_ID, undefined, 100, explorerUri);
+export async function loadObjectives(explorerUri = DEFAULT_EXPLORER_API) {
+  if (!isHexId(activeObjectiveTypeId)) return [];
+  const boxes = await collectBoxes(activeObjectiveTypeId, undefined, 100, explorerUri);
   return boxes.map((box) => {
     const parsed = parseR9(box);
     return {
       boxId: box.boxId,
       profileId: deriveProfileId(box, parsed),
-      name: parsed.name || 'Unnamed Skill',
+      name: parsed.name || 'Unnamed Objective',
       prose: parsed.prose || '',
       formal: parsed.formal || '',
       tags: Array.isArray(parsed.tags) ? parsed.tags : [],
       domain: parsed.domain || '',
-      extendedSkillBoxIds: Array.isArray(parsed.extended_skill_boxes) ? parsed.extended_skill_boxes : [],
+      extendedObjectiveBoxIds: Array.isArray(parsed.extended_objective_boxes) ? parsed.extended_objective_boxes : [],
       sourceHash: parsed.source_hash
     };
   });
@@ -215,15 +223,15 @@ function parseCoverageBox(box) {
   };
 }
 
-export async function loadBenchmarks(skillBoxId, explorerUri = DEFAULT_EXPLORER_API) {
-  if (!isHexId(BENCHMARK_TYPE_ID) || !isHexId(skillBoxId)) return [];
-  const boxes = await collectBoxes(BENCHMARK_TYPE_ID, skillBoxId, 100, explorerUri);
+export async function loadBenchmarks(objectiveBoxId, explorerUri = DEFAULT_EXPLORER_API) {
+  if (!isHexId(BENCHMARK_TYPE_ID) || !isHexId(objectiveBoxId)) return [];
+  const boxes = await collectBoxes(BENCHMARK_TYPE_ID, objectiveBoxId, 100, explorerUri);
   return boxes.map((box) => {
     const parsed = parseR9(box);
     return {
       id: box.boxId,
       profileId: deriveProfileId(box, parsed),
-      skillBoxId,
+      objectiveBoxId,
       name: parsed.name || 'Unnamed Benchmark',
       description: parsed.description || '',
       caseDescriptors: Array.isArray(parsed.case_descriptors) ? parsed.case_descriptors : [],
@@ -256,17 +264,17 @@ export async function loadResults(benchmarkId, explorerUri = DEFAULT_EXPLORER_AP
 }
 
 /**
- * Coverages for a skill — direct Coverage boxes PLUS service ids that
- * indirectly cover the skill via Results (results → benchmarks → skill).
+ * Coverages for an objective — direct Coverage boxes PLUS service ids that
+ * indirectly cover the objective via Results (results → benchmarks → objective).
  * Deduped by serviceId; direct coverages take precedence. Mirrors the
  * `loadCoverages` semantics in `src/lib/api.ts`.
  */
-export async function loadCoverages(skillBoxId, explorerUri = DEFAULT_EXPLORER_API) {
-  if (!isHexId(COVERAGE_TYPE_ID) || !isHexId(skillBoxId)) return [];
-  const boxes = await collectBoxes(COVERAGE_TYPE_ID, skillBoxId, 100, explorerUri);
+export async function loadCoverages(objectiveBoxId, explorerUri = DEFAULT_EXPLORER_API) {
+  if (!isHexId(COVERAGE_TYPE_ID) || !isHexId(objectiveBoxId)) return [];
+  const boxes = await collectBoxes(COVERAGE_TYPE_ID, objectiveBoxId, 100, explorerUri);
   const direct = boxes.map(parseCoverageBox);
 
-  const benchmarks = await loadBenchmarks(skillBoxId, explorerUri);
+  const benchmarks = await loadBenchmarks(objectiveBoxId, explorerUri);
   const resultLists = await Promise.all(benchmarks.map((b) => loadResults(b.id, explorerUri)));
   const results = resultLists.flat();
 
@@ -290,7 +298,7 @@ export async function loadCoverages(skillBoxId, explorerUri = DEFAULT_EXPLORER_A
 
 /**
  * Coverages that target a Benchmark (R5 = the benchmark id). These are the services
- * that RUN the benchmark. A service with a Result in it is a solution of the skill
+ * that RUN the benchmark. A service with a Result in it is a solution of the objective
  * (see `loadCoverages`), not a runner, so it is deliberately not derived here.
  */
 export async function loadBenchmarkCoverages(benchmarkId, explorerUri = DEFAULT_EXPLORER_API) {
@@ -309,20 +317,20 @@ export async function loadBenchmarkCoverages(benchmarkId, explorerUri = DEFAULT_
   return out;
 }
 
-// ── Extended skills ─────────────────────────────────────────────────────────
+// ── Extended objectives ─────────────────────────────────────────────────────────
 //
-// A skill that lists another in `extended_skill_boxes` inherits that skill's
+// An objective that lists another in `extended_objective_boxes` inherits that objective's
 // coverages and benchmarks (the extender is the "parent" in the gallery and the
-// extended one is nested under it). So a general skill extends the specific ones,
+// extended one is nested under it). So a general objective extends the specific ones,
 // and the services of the specific ones show up under the general one.
 
 /**
- * The skills that `boxId` extends, directly or not, nearest first. Cycle-safe: a skill
+ * The objectives that `boxId` extends, directly or not, nearest first. Cycle-safe: an objective
  * is visited once, `boxId` itself is never in the list, and an id that is not in
- * `skills` is skipped.
+ * `objectives` is skipped.
  */
-export function collectExtended(skills, boxId) {
-  const byBox = new Map(skills.map((s) => [s.boxId, s]));
+export function collectExtended(objectives, boxId) {
+  const byBox = new Map(objectives.map((s) => [s.boxId, s]));
   const start = byBox.get(boxId);
   if (!start) return [];
   const seen = new Set([boxId]);
@@ -330,8 +338,8 @@ export function collectExtended(skills, boxId) {
   let level = [start];
   while (level.length) {
     const next = [];
-    for (const skill of level) {
-      for (const refId of skill.extendedSkillBoxIds || []) {
+    for (const objective of level) {
+      for (const refId of objective.extendedObjectiveBoxIds || []) {
         if (seen.has(refId)) continue;
         seen.add(refId);
         const target = byBox.get(refId);
@@ -346,10 +354,10 @@ export function collectExtended(skills, boxId) {
 }
 
 /**
- * The skills that extend `boxId` directly (the other direction of `extended_skill_boxes`).
+ * The objectives that extend `boxId` directly (the other direction of `extended_objective_boxes`).
  */
-export function collectExtenders(skills, boxId) {
-  return skills.filter((s) => s.boxId !== boxId && (s.extendedSkillBoxIds || []).includes(boxId));
+export function collectExtenders(objectives, boxId) {
+  return objectives.filter((s) => s.boxId !== boxId && (s.extendedObjectiveBoxIds || []).includes(boxId));
 }
 
 const cloneCoverage = (c) => ({ ...c });
@@ -358,10 +366,10 @@ const cloneBenchmark = (b) => ({
   results: (b.results || []).map((r) => ({ ...r })),
   ...(b.coverages ? { coverages: b.coverages.map(cloneCoverage) } : {})
 });
-const cloneSkill = (s) => ({
+const cloneObjective = (s) => ({
   ...s,
   tags: [...(s.tags || [])],
-  extendedSkillBoxIds: [...(s.extendedSkillBoxIds || [])],
+  extendedObjectiveBoxIds: [...(s.extendedObjectiveBoxIds || [])],
   coverages: (s.coverages || []).map(cloneCoverage),
   benchmarks: (s.benchmarks || []).map(cloneBenchmark)
 });
@@ -379,26 +387,26 @@ function dedupeBy(items, keyFn) {
 }
 
 /**
- * Merge the coverages and benchmarks of the extended skills into each skill.
+ * Merge the coverages and benchmarks of the extended objectives into each objective.
  * Idempotent and cycle-safe: own entries stay first, inherited ones are appended once
  * per box id, and each inherited entry says where it comes from (`inheritedFrom`, the
- * box id of the skill that owns it). This is the one implementation: the web app
+ * box id of the objective that owns it). This is the one implementation: the web app
  * (`api.ts`) and the MCP server use it.
  */
-export function applySkillInheritance(skills) {
-  const skillMap = new Map(skills.map((skill) => [skill.boxId, skill]));
+export function applyObjectiveInheritance(objectives) {
+  const objectiveMap = new Map(objectives.map((objective) => [objective.boxId, objective]));
   const memo = new Map();
   const active = new Set();
 
-  const resolve = (skill) => {
-    const cached = memo.get(skill.boxId);
-    if (cached) return cloneSkill(cached);
-    if (active.has(skill.boxId)) return cloneSkill(skill);
-    active.add(skill.boxId);
+  const resolve = (objective) => {
+    const cached = memo.get(objective.boxId);
+    if (cached) return cloneObjective(cached);
+    if (active.has(objective.boxId)) return cloneObjective(objective);
+    active.add(objective.boxId);
 
-    const base = cloneSkill(skill);
-    const related = (skill.extendedSkillBoxIds || [])
-      .map((refId) => skillMap.get(refId))
+    const base = cloneObjective(objective);
+    const related = (objective.extendedObjectiveBoxIds || [])
+      .map((refId) => objectiveMap.get(refId))
       .filter(Boolean)
       .map(resolve);
     const from = (parent, item) => ({ ...item, inheritedFrom: item.inheritedFrom ?? parent.boxId });
@@ -413,19 +421,19 @@ export function applySkillInheritance(skills) {
     ).map(cloneBenchmark);
     base.resultCount = base.benchmarks.reduce((sum, b) => sum + (b.results || []).length, 0);
 
-    active.delete(skill.boxId);
-    memo.set(skill.boxId, base);
-    return cloneSkill(base);
+    active.delete(objective.boxId);
+    memo.set(objective.boxId, base);
+    return cloneObjective(base);
   };
 
-  return skills.map(resolve);
+  return objectives.map(resolve);
 }
 
-/** A skill with its own coverages, benchmarks (with results and runners) — no inheritance. */
-async function loadOwnTree(skillBoxId, explorerUri) {
+/** An objective with its own coverages, benchmarks (with results and runners) — no inheritance. */
+async function loadOwnTree(objectiveBoxId, explorerUri) {
   const [coverages, benchmarks] = await Promise.all([
-    loadCoverages(skillBoxId, explorerUri),
-    loadBenchmarks(skillBoxId, explorerUri)
+    loadCoverages(objectiveBoxId, explorerUri),
+    loadBenchmarks(objectiveBoxId, explorerUri)
   ]);
   const withDetail = await Promise.all(
     benchmarks.map(async (b) => {
@@ -440,31 +448,31 @@ async function loadOwnTree(skillBoxId, explorerUri) {
 }
 
 /**
- * A skill with its coverages, benchmarks, per-benchmark results and the services that run
- * each benchmark. With `inherit` (the default) the coverages and benchmarks of the skills
- * that it extends are included (marked `inheritedFrom`), and the result says which skills
- * those are (`extends`) and which skills extend this one (`extendedBy`). Coverages of the
+ * An objective with its coverages, benchmarks, per-benchmark results and the services that run
+ * each benchmark. With `inherit` (the default) the coverages and benchmarks of the objectives
+ * that it extends are included (marked `inheritedFrom`), and the result says which objectives
+ * those are (`extends`) and which objectives extend this one (`extendedBy`). Coverages of the
  * same service are listed once, the own one first.
  */
-export async function loadSkillTree(skillBoxId, explorerUri = DEFAULT_EXPLORER_API, { inherit = true } = {}) {
-  const skills = await loadSkills(explorerUri);
-  const skill = skills.find((s) => s.boxId === skillBoxId) || null;
-  const own = await loadOwnTree(skillBoxId, explorerUri);
-  if (!inherit || !skill) {
-    return { skill, ...own, extends: [], extendedBy: skill ? collectExtenders(skills, skillBoxId).map(brief) : [] };
+export async function loadObjectiveTree(objectiveBoxId, explorerUri = DEFAULT_EXPLORER_API, { inherit = true } = {}) {
+  const objectives = await loadObjectives(explorerUri);
+  const objective = objectives.find((s) => s.boxId === objectiveBoxId) || null;
+  const own = await loadOwnTree(objectiveBoxId, explorerUri);
+  if (!inherit || !objective) {
+    return { objective, ...own, extends: [], extendedBy: objective ? collectExtenders(objectives, objectiveBoxId).map(brief) : [] };
   }
 
-  const extended = collectExtended(skills, skillBoxId);
+  const extended = collectExtended(objectives, objectiveBoxId);
   const trees = await Promise.all(extended.map((e) => loadOwnTree(e.boxId, explorerUri)));
-  // Every skill of the chain keeps what it extends, so a chain of any depth inherits.
-  const pool = [{ ...skill, ...own }, ...extended.map((e, i) => ({ ...e, ...trees[i] }))];
-  const merged = applySkillInheritance(pool)[0];
+  // Every objective of the chain keeps what it extends, so a chain of any depth inherits.
+  const pool = [{ ...objective, ...own }, ...extended.map((e, i) => ({ ...e, ...trees[i] }))];
+  const merged = applyObjectiveInheritance(pool)[0];
   return {
-    skill,
+    objective,
     coverages: dedupeServices(merged.coverages),
     benchmarks: merged.benchmarks,
     extends: extended.map(brief),
-    extendedBy: collectExtenders(skills, skillBoxId).map(brief)
+    extendedBy: collectExtenders(objectives, objectiveBoxId).map(brief)
   };
 }
 
@@ -485,7 +493,7 @@ function dedupeServices(coverages) {
 //
 // Both are opinion boxes keyed by service id (R5) whose R9 carries a fragment of
 // the service's celaut specification — either inline JSON or a blake2b hash that
-// points at the full fragment in `sources`. This lets the skills UI show a
+// points at the full fragment in `sources`. This lets the objectives UI show a
 // service's api/network/architecture/name without downloading the whole service.
 
 /** Architecture string from a service-data spec fragment (celaut nests it under

@@ -12,10 +12,10 @@
   // of paragraphs so it renders without {@html}.
   const faqs: { q: string; a: string[] }[] = [
     {
-      q: "What is Unstoppable Skills?",
+      q: "What is Celaut Registry?",
       a: [
-        "Unstoppable Skills separates the what from the how. A Skill is a pure declarative contract — what problem it solves, the expected inputs and outputs, and the success criteria or benchmarks that define “done”. It contains no code.",
-        "A Service is a sealed, fully reproducible virtual machine that actually solves the skill: an exact OS, dependencies, model, scripts, API, architecture and filesystem frozen together as a trustworthy long-term black box. By default it connects to no network — your Celaut Node decides what it can reach.",
+        "Celaut Registry separates the what from the how. An Objective is a pure declarative contract — what problem it solves, the expected inputs and outputs, and the success criteria or benchmarks that define “done”. It contains no code.",
+        "A Service is a sealed, fully reproducible virtual machine that actually solves the objective: an exact OS, dependencies, model, scripts, API, architecture and filesystem frozen together as a trustworthy long-term black box. By default it connects to no network — your Celaut Node decides what it can reach.",
         "Benchmarks and on-chain results turn that into transparent reputation: anyone can run the verifiable tests, and users simply pick the service with the best track record."
       ]
     },
@@ -41,19 +41,19 @@
     {
       q: "Can I create my own Services?",
       a: [
-        "Yes. Anyone can publish a Service (a VM) that covers an existing Skill and compete on performance, cost, speed and quality. The best service rises on the leaderboard."
+        "Yes. Anyone can publish a Service (a VM) that covers an existing Objective and compete on performance, cost, speed and quality. The best service rises on the leaderboard."
       ]
     },
     {
       q: "Are Services paid?",
       a: [
-        "Optionally, yes. Payment is handled by external methods (for example NiPoPoW-based or other payment systems) and is entirely outside the Unstoppable Skills platform itself."
+        "Optionally, yes. Payment is handled by external methods (for example NiPoPoW-based or other payment systems) and is entirely outside the Celaut Registry platform itself."
       ]
     },
     {
       q: "Is it decentralized?",
       a: [
-        "Yes. Skills, Services and benchmark results are all stored immutably on the Ergo Blockchain."
+        "Yes. Objectives, Services and benchmark results are all stored immutably on the Ergo Blockchain."
       ]
     },
     {
@@ -66,7 +66,7 @@
       q: "What is a Network Definition?",
       a: [
         "A Service is sealed, but it still talks to the outside world — a gRPC comm domain, a REST API, an IPFS swarm. A Network Definition is a brand-free, formal description of one such network: its protocol, how peers are discovered, and the fundamental actions performed on it (each a name with a short description).",
-        "It's an improvable, self-contained object anyone can publish — the same idea as a Skill, applied to networks instead of problems."
+        "It's an improvable, self-contained object anyone can publish — the same idea as an Objective, applied to networks instead of problems."
       ]
     },
     {
@@ -101,17 +101,17 @@
 
   <div class="how-content">
     <p class="how-intro">
-      <strong>Unstoppable Skills</strong> is a decentralized registry built on one idea:
-      a <strong>Skill</strong> says <em>what</em> to solve — a <strong>service</strong> says <em>how</em>.
+      <strong>Celaut Registry</strong> is a decentralized registry built on one idea:
+      an <strong>Objective</strong> says <em>what</em> to solve — a <strong>service</strong> says <em>how</em>.
     </p>
 
     <!-- The contrast: this is the punchline -->
     <div class="how-contrast">
       <div class="contrast-card messy">
         <div class="contrast-head">
-          <span class="contrast-label">Other skill repos</span>
+          <span class="contrast-label">Other objective repos</span>
         </div>
-        <p class="contrast-line">A skill is a pile of natural-language instructions <span class="plus">+</span> scripts.</p>
+        <p class="contrast-line">An objective is a pile of natural-language instructions <span class="plus">+</span> scripts.</p>
         <div class="contrast-tags">
           <span class="tag">prompt text</span>
           <span class="tag">setup.sh</span>
@@ -126,7 +126,7 @@
         <div class="contrast-head">
           <span class="contrast-label">Here</span>
         </div>
-        <p class="contrast-line">A skill is a clean spec of <em>what</em>. The <em>how</em> is sealed inside a service.</p>
+        <p class="contrast-line">An objective is a clean spec of <em>what</em>. The <em>how</em> is sealed inside a service.</p>
         <div class="contrast-tags">
           <span class="tag solid">🖥 exact OS</span>
           <span class="tag solid">📦 deps</span>
@@ -138,15 +138,15 @@
 
     <div class="how-relationships">
       <p>
-        <strong>Skills</strong> define <em>what</em> to solve. <strong>Services</strong> are Virtual Machines (VMs) that solve them their own way.
+        <strong>Objectives</strong> define <em>what</em> to solve. <strong>Services</strong> are Virtual Machines (VMs) that solve them their own way.
         <strong>Benchmarks</strong> define how to measure. <strong>Results</strong> are on-chain proof — and feed each service's reputation.
       </p>
     </div>
 
     <!-- Layered diagram: one WHAT, many sealed HOWs, judged by the community -->
     <div class="how-diagram">
-      <div class="diagram-skill">
-        <span class="node-kind">SKILL</span>
+      <div class="diagram-objective">
+        <span class="node-kind">OBJECTIVE</span>
         <span class="node-sub">what to solve</span>
       </div>
       <div class="diagram-fan">
@@ -166,7 +166,7 @@
           <span class="service-meta">🖥 📦 🤖</span>
         </div>
       </div>
-      <div class="diagram-caption">each a sealed VM — services covering the same skill</div>
+      <div class="diagram-caption">each a sealed VM — services covering the same objective</div>
       <div class="diagram-bench">⭐ Benchmarks &amp; Results — the community scores every service</div>
     </div>
 
@@ -176,7 +176,7 @@
         <div class="step-number">1</div>
         <div class="step-content">
           <div class="step-title">Define</div>
-          <div class="step-desc">Publish a Skill — a declarative spec of the problem: inputs, outputs, success criteria. No implementation.</div>
+          <div class="step-desc">Publish an Objective — a declarative spec of the problem: inputs, outputs, success criteria. No implementation.</div>
         </div>
       </div>
       <div class="step-arrow">&rarr;</div>
@@ -285,7 +285,7 @@
        app boots fresh: it reads ?env=dev at startup → demo mode on, landing on the
        default gallery tab. The relative href keeps the GitHub Pages base path. -->
   <a href="?env=dev" data-sveltekit-reload class="demo-cta-link">See it with example data &rarr;</a>
-  <span class="demo-cta-note">Loads the gallery in demo mode with sample skills, services and benchmark results — no wallet needed.</span>
+  <span class="demo-cta-note">Loads the gallery in demo mode with sample objectives, services and benchmark results — no wallet needed.</span>
 </div>
 
 <style lang="postcss">
@@ -472,7 +472,7 @@
     border: 1px solid hsl(var(--border));
   }
 
-  .diagram-skill {
+  .diagram-objective {
     display: flex;
     flex-direction: column;
     align-items: center;

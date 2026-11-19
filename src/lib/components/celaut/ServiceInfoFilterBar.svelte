@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * Filter bar for a skill's covered services, driven by the on-chain Service
+   * Filter bar for an objective's covered services, driven by the on-chain Service
    * Data each service publishes: hide services with networks, or filter by
    * architecture / api protocol. Options are derived from whatever has loaded so
    * far, so the bar fills in as the lazy service-info loads land.

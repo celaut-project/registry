@@ -1,33 +1,33 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import type { Skill } from '$lib/types';
+  import type { Objective } from '$lib/types';
   import { categoryVisual } from '$lib/categoryIcons';
   import { formatReputation } from '$lib/reputation';
   import { Wrench, ChartBar, Activity, Check } from 'lucide-svelte';
 
-  export let skill: Skill;
+  export let objective: Objective;
   export let onClick: () => void;
   /** When true, render a comparison checkbox and surface compare interactions. */
   export let selectable: boolean = false;
   /** Whether this card is currently picked for comparison. */
   export let selected: boolean = false;
 
-  const dispatch = createEventDispatcher<{ compare: { skill: Skill; selected: boolean } }>();
+  const dispatch = createEventDispatcher<{ compare: { objective: Objective; selected: boolean } }>();
 
-  $: visual = categoryVisual(skill.domain);
+  $: visual = categoryVisual(objective.domain);
   $: Icon = visual.icon;
   $: accent = visual.hsl;
 
-  // Reputation is stored as burned nanoERG; the badge is the skill's headline metric.
-  $: reputation = skill.reputation ?? 0;
+  // Reputation is stored as burned nanoERG; the badge is the objective's headline metric.
+  $: reputation = objective.reputation ?? 0;
   $: hasReputation = reputation > 0;
 
-  $: coverageCount = skill.coverages?.length ?? 0;
-  $: benchmarkCount = skill.benchmarks?.length ?? 0;
-  $: resultCount = skill.resultCount ?? 0;
+  $: coverageCount = objective.coverages?.length ?? 0;
+  $: benchmarkCount = objective.benchmarks?.length ?? 0;
+  $: resultCount = objective.resultCount ?? 0;
 
   // Operational metrics define a small reliability profile. With no on-chain
-  // time-series available, the sparkline shows the skill's activity shape across
+  // time-series available, the sparkline shows the objective's activity shape across
   // (services → benchmarks → results) so a flat number becomes a glanceable trend.
   $: sparkPoints = buildSparkline([coverageCount, benchmarkCount, resultCount]);
   $: reliabilityActive = coverageCount > 0 && benchmarkCount > 0 && resultCount > 0;
@@ -48,7 +48,7 @@
 
   function handleCompare(event: Event) {
     event.stopPropagation();
-    dispatch('compare', { skill, selected: !selected });
+    dispatch('compare', { objective, selected: !selected });
   }
 
   function handleKey(event: KeyboardEvent) {
@@ -60,8 +60,8 @@
 </script>
 
 <article
-  class="skill-card"
-  class:skill-card-selected={selected}
+  class="objective-card"
+  class:objective-card-selected={selected}
   style={`--cat-accent: ${accent};`}
 >
   <!-- Whole-card click target; the compare control overrides it locally. -->
@@ -69,7 +69,7 @@
     class="card-hit"
     role="button"
     tabindex="0"
-    aria-label={`Open ${skill.name}`}
+    aria-label={`Open ${objective.name}`}
     on:click={onClick}
     on:keydown={handleKey}
   >
@@ -82,7 +82,7 @@
           class:compare-box-on={selected}
           role="checkbox"
           aria-checked={selected}
-          aria-label={selected ? `Remove ${skill.name} from comparison` : `Add ${skill.name} to comparison`}
+          aria-label={selected ? `Remove ${objective.name} from comparison` : `Add ${objective.name} to comparison`}
           title="Compare"
           on:click={handleCompare}
         >
@@ -94,28 +94,28 @@
         <svelte:component this={Icon} size={18} strokeWidth={2} />
       </span>
 
-      <h3 class="card-title">{skill.name}</h3>
+      <h3 class="card-title">{objective.name}</h3>
 
       {#if hasReputation}
-        <span class="erg-badge" title="On-chain reputation — total ERG burned against this skill">
+        <span class="erg-badge" title="On-chain reputation — total ERG burned against this objective">
           {formatReputation(reputation)}
         </span>
       {/if}
     </div>
 
     <!-- Description: looser leading + AA contrast; full text on hover/focus -->
-    <p class="card-prose" title={skill.prose || 'No description available.'}>
-      {skill.prose || 'No description available.'}
+    <p class="card-prose" title={objective.prose || 'No description available.'}>
+      {objective.prose || 'No description available.'}
     </p>
 
     <!-- Domain tags — visually separated from operational metrics below -->
-    {#if skill.tags?.length}
+    {#if objective.tags?.length}
       <div class="card-tags">
-        {#each skill.tags.slice(0, 4) as tag}
+        {#each objective.tags.slice(0, 4) as tag}
           <span class="tag">{tag}</span>
         {/each}
-        {#if skill.tags.length > 4}
-          <span class="tag tag-more">+{skill.tags.length - 4}</span>
+        {#if objective.tags.length > 4}
+          <span class="tag tag-more">+{objective.tags.length - 4}</span>
         {/if}
       </div>
     {/if}
@@ -145,7 +145,7 @@
 </article>
 
 <style lang="postcss">
-  .skill-card {
+  .objective-card {
     position: relative;
     display: flex;
     flex-direction: column;
@@ -156,7 +156,7 @@
     transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
   }
   /* Category color accent strip down the leading edge. */
-  .skill-card::before {
+  .objective-card::before {
     content: '';
     position: absolute;
     inset: 0 auto 0 0;
@@ -164,12 +164,12 @@
     background: hsl(var(--cat-accent));
     opacity: 0.7;
   }
-  .skill-card:hover {
+  .objective-card:hover {
     border-color: hsl(var(--cat-accent) / 0.5);
     box-shadow: 0 6px 20px -8px hsl(var(--cat-accent) / 0.35);
     transform: translateY(-2px);
   }
-  .skill-card-selected {
+  .objective-card-selected {
     border-color: hsl(var(--cat-accent) / 0.8);
     box-shadow: 0 0 0 1px hsl(var(--cat-accent) / 0.6);
   }

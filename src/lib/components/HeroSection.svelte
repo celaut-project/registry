@@ -9,10 +9,10 @@
 
 <section class="hero-section" class:hero-visible={visible}>
   <div class="hero-content">
-    <h1 class="hero-title">Skills Gallery</h1>
+    <h1 class="hero-title">Objectives Gallery</h1>
 
     <p class="hero-description">
-      A decentralized registry for AI agent capabilities
+      A decentralized registry for AI agent objectives
     </p>
   </div>
 </section>

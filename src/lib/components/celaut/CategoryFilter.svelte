@@ -1,10 +1,10 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import type { Skill } from '$lib/types';
+  import type { Objective } from '$lib/types';
   import { categoryColor } from '$lib/categoryIcons';
 
   export let activeCategory: string = 'all';
-  export let skills: Skill[] = [];
+  export let objectives: Objective[] = [];
 
   const dispatch = createEventDispatcher();
   const seedCategories = ['finance', 'infrastructure', 'analytics', 'security', 'ai/ml'];
@@ -20,8 +20,8 @@
     const counts = new Map<string, number>();
 
     for (const seed of seedCategories) counts.set(seed, 0);
-    for (const skill of skills) {
-      const key = skill.domain?.trim().toLowerCase();
+    for (const objective of objectives) {
+      const key = objective.domain?.trim().toLowerCase();
       if (!key) continue;
       counts.set(key, (counts.get(key) ?? 0) + 1);
     }
@@ -34,7 +34,7 @@
       })
       .map(([value, count]) => ({ value, label: titleize(value), count, color: categoryColor(value) }));
 
-    return [{ value: 'all', label: 'All', count: skills.length, color: '220 9% 46%' }, ...ranked];
+    return [{ value: 'all', label: 'All', count: objectives.length, color: '220 9% 46%' }, ...ranked];
   })();
 
   function select(value: string) {
@@ -43,7 +43,7 @@
   }
 </script>
 
-<div class="category-filter" role="tablist" aria-label="Filter skills by category">
+<div class="category-filter" role="tablist" aria-label="Filter objectives by category">
   {#each categories as cat}
     <button
       class="chip"

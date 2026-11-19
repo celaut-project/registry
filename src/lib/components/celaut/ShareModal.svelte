@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
-   * "Share Skill" modal — lets a user share a skill to Twitter/X, Telegram or
-   * LinkedIn, or copy a pre-filled message with a deep link to the skill.
+   * "Share Objective" modal — lets a user share an objective to Twitter/X, Telegram or
+   * LinkedIn, or copy a pre-filled message with a deep link to the objective.
    *
    * Styled to match the app's portal-based modal pattern (see
    * ClaimCoverageButton). Adapted from the game-of-prompts ShareModal.
@@ -13,15 +13,15 @@
     type ShareConfig,
     getShareUrl,
     getShareText,
-    getSkillUrl,
+    getObjectiveUrl,
     openShareUrl,
     copyToClipboard,
     getPlatformMetadata
   } from './share-utils';
 
   export let open = false;
-  export let skillName = '';
-  export let skillBoxId = '';
+  export let objectiveName = '';
+  export let objectiveBoxId = '';
   export let description = '';
 
   const dispatch = createEventDispatcher<{ close: void }>();
@@ -33,8 +33,8 @@
   let copyTimeout: ReturnType<typeof setTimeout>;
   let isSharing = false;
 
-  $: shareConfig = { skillName, skillBoxId, description } satisfies ShareConfig;
-  $: previewUrl = skillBoxId ? getSkillUrl(skillBoxId) : '';
+  $: shareConfig = { objectiveName, objectiveBoxId, description } satisfies ShareConfig;
+  $: previewUrl = objectiveBoxId ? getObjectiveUrl(objectiveBoxId) : '';
 
   // Reset transient state whenever the modal closes.
   $: if (!open) {
@@ -75,18 +75,18 @@
   <div class="share-modal-backdrop" use:portal on:click={close}>
     <!-- svelte-ignore a11y-click-events-have-key-events -->
     <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-    <div class="share-modal-content" on:click|stopPropagation role="dialog" aria-modal="true" aria-label="Share skill">
+    <div class="share-modal-content" on:click|stopPropagation role="dialog" aria-modal="true" aria-label="Share objective">
       <div class="share-modal-header">
         <h3 class="share-modal-title">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
           </svg>
-          Share Skill
+          Share Objective
         </h3>
         <button class="share-modal-close" on:click={close} aria-label="Close">✕</button>
       </div>
       <p class="share-modal-desc">
-        Share <strong>{skillName || 'this skill'}</strong> with your network. Pick a
+        Share <strong>{objectiveName || 'this objective'}</strong> with your network. Pick a
         platform for a pre-filled post, or copy the message with a link.
       </p>
 
@@ -120,7 +120,7 @@
 
       <div class="share-preview">
         <p class="share-preview-label">Preview message</p>
-        <p class="share-preview-text">Check out the "{skillName || 'this skill'}" skill on Unstoppable Skills 🤖</p>
+        <p class="share-preview-text">Check out the "{objectiveName || 'this objective'}" objective on Celaut Registry 🤖</p>
         {#if previewUrl}
           <p class="share-preview-url">{previewUrl}</p>
         {/if}

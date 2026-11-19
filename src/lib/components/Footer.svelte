@@ -25,8 +25,8 @@
   // Rotating banner text — index advances when the marquee animation iterates,
   // so users see a different tagline on each loop instead of one fixed string.
   const footerMessages = [
-    'Descentraliced & unstoppable skill registry. Powered by Ergo Blockchain.',
-    'Celaut paradigm: Find a skill for your problem and download the best solver.',
+    'Descentraliced & unstoppable objective registry. Powered by Ergo Blockchain.',
+    'Celaut paradigm: Find an objective for your problem and download the best solver.',
     'Public gateway hosted on GitHub. Or run it yourself for full P2P sovereignty.',
   ];
   let activeMessageIndex = 0;

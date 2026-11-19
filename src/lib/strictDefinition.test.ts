@@ -44,7 +44,7 @@ describe('R9 encode/decode', () => {
   });
 
   it('refuses to encode a tag that does not match its kind', () => {
-    const bad = { kind: ConceptKind.Network, tag: 'skill:oops', prose: 'x', formal: SPEC };
+    const bad = { kind: ConceptKind.Network, tag: 'objective:oops', prose: 'x', formal: SPEC };
     expect(() => encodeStrictDefinitionR9(bad)).toThrow(/must start with/);
   });
 });

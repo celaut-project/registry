@@ -8,14 +8,14 @@
   import { getMainReputationBox } from '$lib/reputationContext';
   import { portal } from '$lib/actions/portal';
 
-  export let skillBoxId: string = '';
+  export let objectiveBoxId: string = '';
   /**
-   * When set, the coverage targets a BENCHMARK instead of the skill directly:
-   * the user suggests a service that tests the skill following this benchmark's
-   * specification. `skillBoxId` is still passed through as the parent skill.
+   * When set, the coverage targets a BENCHMARK instead of the objective directly:
+   * the user suggests a service that tests the objective following this benchmark's
+   * specification. `objectiveBoxId` is still passed through as the parent objective.
    */
   export let benchmarkId: string = '';
-  /** Button label — defaults differ slightly between skill and benchmark mode. */
+  /** Button label — defaults differ slightly between objective and benchmark mode. */
   export let label: string = '';
   /**
    * Button size. `'default'` is the standalone size; `'compact'` matches the
@@ -33,19 +33,19 @@
 
   // The coverage's service id is provided by the user via the modal form, NOT
   // derived from the wallet address. A coverage asserts that a specific service
-  // (by its id) covers the skill — that id belongs to the service, not the
+  // (by its id) covers the objective — that id belongs to the service, not the
   // claimant.
   let showModal = false;
   let serviceId = '';
 
-  /** Open the claim modal (after the cheap wallet/skill guards). */
+  /** Open the claim modal (after the cheap wallet/objective guards). */
   function openModal() {
     if (!$walletConnected) {
       toasts.error('Connect wallet to claim coverage.');
       return;
     }
-    if (!benchmarkMode && !skillBoxId) {
-      toasts.error('Select a skill first.');
+    if (!benchmarkMode && !objectiveBoxId) {
+      toasts.error('Select an objective first.');
       return;
     }
     if (benchmarkMode && !benchmarkId) {
@@ -76,7 +76,7 @@
     submitting = true;
     try {
       const txId = await createCoverage({
-        skillBoxId,
+        objectiveBoxId,
         benchmarkId: benchmarkMode ? benchmarkId : undefined,
         serviceId: trimmedServiceId,
         tokenAmount: 1,
@@ -130,11 +130,11 @@
       </div>
       <p class="claim-modal-desc">
         {#if benchmarkMode}
-          Enter the <strong>service id</strong> of a service that tests this skill
+          Enter the <strong>service id</strong> of a service that tests this objective
           following this benchmark's specification.
         {:else}
           Enter the <strong>service id</strong> of a service that implements (solves)
-          this skill.
+          this objective.
         {/if}
       </p>
       <!-- svelte-ignore a11y-autofocus -->

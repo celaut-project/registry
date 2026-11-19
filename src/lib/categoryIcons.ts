@@ -1,7 +1,7 @@
 /**
- * Category iconography for Celaut Skills.
+ * Category iconography for Celaut Registry.
  *
- * A single source of truth mapping a skill's `domain` (a.k.a. category) to a
+ * A single source of truth mapping an objective's `domain` (a.k.a. category) to a
  * lucide-svelte icon component, plus a consistent color token per category for
  * scannable color-coding across the gallery and the detail view.
  *
@@ -10,8 +10,8 @@
  * or user-supplied category falls back to a generic icon + neutral color so the
  * UI never renders a blank slot.
  *
- * Reuse: the skill detail view replaces its title glyph with
- * `categoryIcon(skill.domain)` and can read `categoryColor(skill.domain)` for a
+ * Reuse: the objective detail view replaces its title glyph with
+ * `categoryIcon(objective.domain)` and can read `categoryColor(objective.domain)` for a
  * matching accent — keep this helper presentation-agnostic.
  */
 import type { ComponentType } from 'svelte';
@@ -46,7 +46,7 @@ const GENERIC: CategoryVisual = {
 
 /**
  * Canonical visuals keyed by the normalized category value (lower-cased, the
- * same form stored in `skill.domain`). Keep keys aligned with the seed list in
+ * same form stored in `objective.domain`). Keep keys aligned with the seed list in
  * CategoryFilter so every seed category resolves to a dedicated icon.
  */
 const CATEGORY_VISUALS: Record<string, CategoryVisual> = {

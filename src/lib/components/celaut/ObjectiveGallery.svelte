@@ -1,22 +1,22 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import { filteredSkills, loading, searchQuery, skills } from '$lib/stores';
-  import { loadSkills as fetchSkills } from '$lib/api';
+  import { filteredObjectives, loading, searchQuery, objectives } from '$lib/stores';
+  import { loadObjectives as fetchObjectives } from '$lib/api';
   import { NANOERG_PER_ERG } from '$lib/reputation';
-  import SkillCard from './SkillCard.svelte';
+  import ObjectiveCard from './ObjectiveCard.svelte';
   import CategoryFilter from './CategoryFilter.svelte';
   import SortDropdown from './SortDropdown.svelte';
   import { Search, X, Plus, GitCompare, RotateCw } from 'lucide-svelte';
-  import type { Skill } from '$lib/types';
+  import type { Objective } from '$lib/types';
 
-  /** Navigate to a skill's detail view. */
-  export let onSelectSkill: (skill: Skill) => void;
-  /** Optional: triggered by the "Register New Skill" CTA (e.g. switch to Submit tab). */
+  /** Navigate to an objective's detail view. */
+  export let onSelectObjective: (objective: Objective) => void;
+  /** Optional: triggered by the "Register New Objective" CTA (e.g. switch to Submit tab). */
   export let onRegister: (() => void) | undefined = undefined;
   /** Optional: triggered when the user confirms a comparison selection. */
-  export let onCompare: ((skills: Skill[]) => void) | undefined = undefined;
+  export let onCompare: ((objectives: Objective[]) => void) | undefined = undefined;
 
-  const dispatch = createEventDispatcher<{ register: void; compare: Skill[] }>();
+  const dispatch = createEventDispatcher<{ register: void; compare: Objective[] }>();
 
   let activeCategory = 'all';
   let currentSort = 'reputation';
@@ -36,22 +36,22 @@
 
   async function refresh() {
     $loading = true;
-    $skills = await fetchSkills();
+    $objectives = await fetchObjectives();
     $loading = false;
   }
 
-  function filterByCategory(list: Skill[], category: string): Skill[] {
+  function filterByCategory(list: Objective[], category: string): Objective[] {
     if (category === 'all') return list;
     return list.filter((s) => s.domain?.toLowerCase() === category.toLowerCase());
   }
 
-  function filterByReputation(list: Skill[], minErg: number): Skill[] {
+  function filterByReputation(list: Objective[], minErg: number): Objective[] {
     if (!minErg) return list;
     const floor = minErg * NANOERG_PER_ERG;
     return list.filter((s) => (s.reputation ?? 0) >= floor);
   }
 
-  function sortSkills(list: Skill[], sort: string): Skill[] {
+  function sortObjectives(list: Objective[], sort: string): Objective[] {
     const sorted = [...list];
     switch (sort) {
       case 'name':
@@ -69,18 +69,18 @@
     }
   }
 
-  $: displayedSkills = sortSkills(
-    filterByReputation(filterByCategory($filteredSkills, activeCategory), minRepErg),
+  $: displayedObjectives = sortObjectives(
+    filterByReputation(filterByCategory($filteredObjectives, activeCategory), minRepErg),
     currentSort
   );
 
-  $: selectedSkills = $skills.filter((s) => selectedIds.has(s.boxId));
+  $: selectedObjectives = $objectives.filter((s) => selectedIds.has(s.boxId));
   $: hasActiveFilters = !!$searchQuery || activeCategory !== 'all' || minRepErg > 0;
 
-  function handleCompareToggle(e: CustomEvent<{ skill: Skill; selected: boolean }>) {
-    const { skill, selected } = e.detail;
-    if (selected) selectedIds.add(skill.boxId);
-    else selectedIds.delete(skill.boxId);
+  function handleCompareToggle(e: CustomEvent<{ objective: Objective; selected: boolean }>) {
+    const { objective, selected } = e.detail;
+    if (selected) selectedIds.add(objective.boxId);
+    else selectedIds.delete(objective.boxId);
     selectedIds = new Set(selectedIds); // trigger reactivity
   }
 
@@ -94,9 +94,9 @@
   }
 
   function confirmCompare() {
-    if (selectedSkills.length < 2) return;
-    onCompare?.(selectedSkills);
-    dispatch('compare', selectedSkills);
+    if (selectedObjectives.length < 2) return;
+    onCompare?.(selectedObjectives);
+    dispatch('compare', selectedObjectives);
   }
 
   function register() {
@@ -106,7 +106,7 @@
 </script>
 
 <!-- Category filter (color-coded chips with per-category counts) -->
-<CategoryFilter {activeCategory} skills={$skills} on:filter={(e) => { activeCategory = e.detail; }} />
+<CategoryFilter {activeCategory} objectives={$objectives} on:filter={(e) => { activeCategory = e.detail; }} />
 
 <!-- Dominant search + controls bar -->
 <div class="control-bar">
@@ -115,9 +115,9 @@
     <input
       type="text"
       bind:value={$searchQuery}
-      placeholder="Search skills, tags, domains…"
+      placeholder="Search objectives, tags, domains…"
       class="search-input"
-      aria-label="Search skills"
+      aria-label="Search objectives"
     />
     {#if $searchQuery}
       <button class="search-clear" on:click={() => ($searchQuery = '')} aria-label="Clear search" title="Clear search">
@@ -142,13 +142,13 @@
       class="compare-toggle"
       class:compare-toggle-on={compareMode}
       on:click={toggleCompareMode}
-      title="Select skills to compare side by side"
+      title="Select objectives to compare side by side"
     >
       <GitCompare size={15} strokeWidth={2} />
       Compare
     </button>
 
-    <button class="refresh-btn" on:click={refresh} title="Reload skills from chain" aria-label="Refresh">
+    <button class="refresh-btn" on:click={refresh} title="Reload objectives from chain" aria-label="Refresh">
       <RotateCw size={15} strokeWidth={2} />
     </button>
   </div>
@@ -156,7 +156,7 @@
 
 <!-- Result count line -->
 <p class="result-count">
-  {displayedSkills.length} skill{displayedSkills.length !== 1 ? 's' : ''}
+  {displayedObjectives.length} objective{displayedObjectives.length !== 1 ? 's' : ''}
   {$searchQuery ? `matching "${$searchQuery}"` : ''}
   {activeCategory !== 'all' ? `in ${activeCategory}` : ''}
 </p>
@@ -164,25 +164,25 @@
 {#if $loading}
   <div class="loading-state">
     <div class="spinner"></div>
-    <span>Loading skills from chain…</span>
+    <span>Loading objectives from chain…</span>
   </div>
-{:else if displayedSkills.length === 0}
+{:else if displayedObjectives.length === 0}
   <div class="empty-state">
-    <p class="empty-title">No skills found</p>
+    <p class="empty-title">No objectives found</p>
     {#if hasActiveFilters}
       <p class="empty-sub">Try a different search term, category, or lower the minimum reputation.</p>
     {:else}
-      <p class="empty-sub">Be the first to register a skill.</p>
+      <p class="empty-sub">Be the first to register an objective.</p>
     {/if}
   </div>
 {:else}
-  <div class="skills-grid">
-    {#each displayedSkills as skill (skill.boxId)}
-      <SkillCard
-        {skill}
+  <div class="objectives-grid">
+    {#each displayedObjectives as objective (objective.boxId)}
+      <ObjectiveCard
+        {objective}
         selectable={compareMode}
-        selected={selectedIds.has(skill.boxId)}
-        onClick={() => onSelectSkill(skill)}
+        selected={selectedIds.has(objective.boxId)}
+        onClick={() => onSelectObjective(objective)}
         on:compare={handleCompareToggle}
       />
     {/each}
@@ -193,19 +193,19 @@
 <div class="cta-row">
   <button class="register-cta" on:click={register}>
     <Plus size={17} strokeWidth={2.5} />
-    Register New Skill
+    Register New Objective
   </button>
 </div>
 
 <!-- Comparison tray -->
-{#if compareMode && selectedSkills.length > 0}
+{#if compareMode && selectedObjectives.length > 0}
   <div class="compare-tray" role="region" aria-label="Comparison selection">
-    <span class="compare-tray-count">{selectedSkills.length} selected</span>
-    <span class="compare-tray-names">{selectedSkills.map((s) => s.name).join(' · ')}</span>
+    <span class="compare-tray-count">{selectedObjectives.length} selected</span>
+    <span class="compare-tray-names">{selectedObjectives.map((s) => s.name).join(' · ')}</span>
     <button class="compare-tray-clear" on:click={clearComparison}>Clear</button>
-    <button class="compare-tray-go" disabled={selectedSkills.length < 2} on:click={confirmCompare}>
+    <button class="compare-tray-go" disabled={selectedObjectives.length < 2} on:click={confirmCompare}>
       <GitCompare size={15} strokeWidth={2} />
-      Compare ({selectedSkills.length})
+      Compare ({selectedObjectives.length})
     </button>
   </div>
 {/if}
@@ -338,7 +338,7 @@
   }
 
   /* ── Grid ────────────────────────────────────────────────────────────── */
-  .skills-grid {
+  .objectives-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 1rem;

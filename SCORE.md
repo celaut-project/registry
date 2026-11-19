@@ -6,7 +6,7 @@ This document defines the mathematical architecture for calculating the global s
 
 The system evaluates performance through the following entities, each with a **Raw Reputation ($R_{raw}$)** value assimilated as an integer in the range $\{-N_{max}, \dots, 0, \dots, N_{max}\}$:
 
-* **Skill:** The global category within this formula.
+* **Objective:** The global category within this formula.
 * **User:** The actor who executes or uploads a result.
 * **Service:** The software/algorithm being evaluated.
 * **Benchmark:** Test suite featuring *Case Descriptors* and *Performance Metrics*.
@@ -36,7 +36,7 @@ $$W_e = 0.5 - 0.5 \cdot \frac{\log(1 + |R_{raw}(e)|)}{\log(1 + N_{max})}$$
 * Reputation of $0$ (new/neutral entity) $\rightarrow$ $W_e = 0.5$ (medium impact).
 * Strongly positive reputation $\rightarrow$ $W_e$ approaches $1$ (maximum confidence).
 
-*(Note: $N_{max}$ is the maximum absolute reputation value observed solely within that Skill to keep the scale calibrated).*
+*(Note: $N_{max}$ is the maximum absolute reputation value observed solely within that Objective to keep the scale calibrated).*
 
 ---
 

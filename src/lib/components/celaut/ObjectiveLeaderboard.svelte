@@ -20,7 +20,7 @@
   import { demoMode } from '$lib/config';
   import { getMainReputationBox } from '$lib/reputationContext';
 
-  // Parent (App.svelte) listens for `created` to refresh the skill tree after
+  // Parent (App.svelte) listens for `created` to refresh the objective tree after
   // a successful on-chain write. Mirrors the wiring used by ClaimCoverageButton
   // and the benchmark creation form.
   const dispatch = createEventDispatcher<{ created: { txId: string } }>();
@@ -29,8 +29,8 @@
   export let selectedBenchmarkId: string | null = null;
   export let onAddSource: ((hash: string) => void) | undefined = undefined;
   // Forwarded so dialogue buttons can produce friendly side-rail titles
-  // ("Benchmark: …" / "Result for …") for whichever skill is in view.
-  export let skillName: string = '';
+  // ("Benchmark: …" / "Result for …") for whichever objective is in view.
+  export let objectiveName: string = '';
 
   // Source cache per hash
   let sourceCache: Record<string, FileSource[]> = {};
@@ -358,7 +358,7 @@
          view. A single discreet info icon carries the explanation. -->
     <div class="section-header">
       <InfoTip title="What is a Benchmark?">
-        <p>A <strong>Benchmark</strong> defines how a skill is measured. It carries:</p>
+        <p>A <strong>Benchmark</strong> defines how an objective is measured. It carries:</p>
         <ul>
           <li><strong>Case descriptors</strong> — the dimensions of the problem space (e.g. <code>batch_size</code>, <code>context_tokens</code>). Each case execution provides a value per descriptor.</li>
           <li><strong>Performance metrics</strong> — the measurement axes (e.g. <code>latency_ms ↓</code>, <code>accuracy ↑</code>). Each metric carries its direction (higher or lower is better).</li>
@@ -486,15 +486,15 @@
                 </details>
               {/if}
 
-              <!-- Results header — disambiguates "Result service" (a skill
+              <!-- Results header — disambiguates "Result service" (an objective
                    solution being ranked) from the "Benchmark runner" services
                    further down (which only run the benchmark). -->
               <div class="results-header">
                 <h4 class="results-title">Results</h4>
                 <span class="results-count">{benchmark.results.length}</span>
-                <InfoTip title="Results — skill implementations">
-                  <p>Each <strong>Result</strong> ranks a <strong>service that implements this skill</strong> — a candidate <em>solution</em> measured against the benchmark. Its <strong>Service ID</strong> identifies that solution.</p>
-                  <p>Don't confuse these with the <strong>Benchmark runner</strong> below: those are services that <em>run</em> the benchmark, not solutions to the skill.</p>
+                <InfoTip title="Results — objective implementations">
+                  <p>Each <strong>Result</strong> ranks a <strong>service that implements this objective</strong> — a candidate <em>solution</em> measured against the benchmark. Its <strong>Service ID</strong> identifies that solution.</p>
+                  <p>Don't confuse these with the <strong>Benchmark runner</strong> below: those are services that <em>run</em> the benchmark, not solutions to the objective.</p>
                 </InfoTip>
               </div>
 
@@ -506,7 +506,7 @@
                     <thead>
                       <tr>
                         <th class="th-rank">Rank</th>
-                        <th class="th-service" title="Service that implements the skill — the solution being ranked">Solution service</th>
+                        <th class="th-service" title="Service that implements the objective — the solution being ranked">Solution service</th>
                         {#each metrics as m}
                           <th class="th-metric" title={m.description}>
                             <code>{m.name}</code> {m.higherIsBetter ? '↑' : '↓'}
@@ -682,7 +682,7 @@
               {/if}
 
               <!-- Benchmark coverages: services that RUN this benchmark (not
-                   skill solutions). Demoted to a collapsible section — most
+                   objective solutions). Demoted to a collapsible section — most
                    users come for the Results above, not the runner list. -->
               <details class="bench-coverages-details">
                 <summary class="bench-coverages-summary">
@@ -693,7 +693,7 @@
                   <span class="bench-coverages-count">{(benchmark.coverages ?? []).length}</span>
                   <InfoTip title="Benchmark runner">
                     <p>Services suggested to <strong>run this benchmark</strong> — they execute the test harness to generate or verify results.</p>
-                    <p>These are <em>not</em> skill solutions: the services ranked in <strong>Results</strong> above are the ones that implement the skill.</p>
+                    <p>These are <em>not</em> objective solutions: the services ranked in <strong>Results</strong> above are the ones that implement the objective.</p>
                   </InfoTip>
                   <svg class="bench-coverages-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <polyline points="6 9 12 15 18 9"/>
@@ -726,7 +726,7 @@
                   {/if}
                   <div class="bench-coverages-claim">
                     <ClaimCoverageButton
-                      skillBoxId={benchmark.skillBoxId}
+                      objectiveBoxId={benchmark.objectiveBoxId}
                       benchmarkId={benchmark.id}
                       label="Suggest Service"
                       size="compact"
@@ -741,7 +741,7 @@
                 <button
                   class="discussion-toggle"
                   type="button"
-                  on:click={() => openForum(benchmark.id, `Benchmark: ${benchmark.name}${skillName ? ` — ${skillName}` : ''}`)}
+                  on:click={() => openForum(benchmark.id, `Benchmark: ${benchmark.name}${objectiveName ? ` — ${objectiveName}` : ''}`)}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
@@ -791,7 +791,7 @@
                     <div class="form-row">
                       <label class="form-label" for="result-service-{benchmark.id}">
                         Service ID <span class="text-red-500">*</span>
-                        <span class="form-hint-inline">— the service that implements the skill (the solution you measured)</span>
+                        <span class="form-hint-inline">— the service that implements the objective (the solution you measured)</span>
                       </label>
                       <input id="result-service-{benchmark.id}" class="form-input" bind:value={submitServiceId} placeholder="e.g. QmXf39bC4F7dNK2Pw..." required />
                     </div>

@@ -4,7 +4,7 @@ A **Service** is a sealed black box, but it never runs in a vacuum: it talks to
 the outside world through **networks** — a gRPC comm domain, a REST API, an IPFS
 swarm. A service is only as trustworthy as the networks it depends on, so those
 networks are pinned down formally and assessed in the open, exactly the way
-Skills and Services are.
+Objectives and Services are.
 
 Two brand-free objects capture this, both stored as ordinary reputation-system
 boxes on Ergo:

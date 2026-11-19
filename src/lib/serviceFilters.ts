@@ -1,7 +1,7 @@
 /**
- * Skill-detail service filtering.
+ * Objective-detail service filtering.
  *
- * On a skill's detail page each covered service lazily publishes its on-chain
+ * On an objective's detail page each covered service lazily publishes its on-chain
  * Service Data / Service Metadata (see ServiceInfoCard). As those land they are
  * registered here, so a filter bar can offer facets — no-networks, architecture,
  * api/protocol — computed from the reputation-weighted top assertion of each
@@ -38,7 +38,7 @@ export const emptyFilters = (): ServiceFilters => ({
 /** Registry of loaded service info, keyed by service id. */
 export const serviceInfoRegistry = writable<Record<string, ServiceInfoEntry>>({});
 
-/** The active skill-detail filters. */
+/** The active objective-detail filters. */
 export const serviceFilters = writable<ServiceFilters>(emptyFilters());
 
 export function registerServiceInfo(serviceId: string, entry: ServiceInfoEntry): void {
@@ -46,7 +46,7 @@ export function registerServiceInfo(serviceId: string, entry: ServiceInfoEntry):
   serviceInfoRegistry.update((m) => ({ ...m, [serviceId]: entry }));
 }
 
-/** Reset the registry + filters — call when switching to a different skill. */
+/** Reset the registry + filters — call when switching to a different objective. */
 export function resetServiceInfo(): void {
   serviceInfoRegistry.set({});
   serviceFilters.set(emptyFilters());

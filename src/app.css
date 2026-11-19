@@ -170,7 +170,7 @@ button[class*="wallet-connect"] div[style*="ef4444"] {
 }
 
 /* Dark mode border refinements */
-.dark .skill-card,
+.dark .objective-card,
 .dark .stats-bar,
 .dark .how-it-works {
   border-color: hsl(var(--border) / 0.7);
@@ -205,10 +205,10 @@ div[class*="wallet"] [style*="ef4444"],
 }
 
 /* Card hover: subtle lift */
-.skill-card {
+.objective-card {
   transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
-.skill-card:hover {
+.objective-card:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px hsl(var(--foreground) / 0.06);
 }
@@ -235,10 +235,10 @@ div[class*="wallet"] [style*="ef4444"],
 
 /* ── Responsive: tablet (≤768px) ─────────────────────────────────────────── */
 @media (max-width: 768px) {
-  /* Stack 2-column page layouts (skill detail panel + leaderboard side, etc.) */
+  /* Stack 2-column page layouts (objective detail panel + leaderboard side, etc.) */
   .two-col,
   .detail-layout,
-  .skill-detail-grid,
+  .objective-detail-grid,
   .compare-grid {
     grid-template-columns: 1fr !important;
   }
@@ -289,8 +289,8 @@ div[class*="wallet"] [style*="ef4444"],
     max-width: none !important;
   }
 
-  /* Skill gallery grid collapses to one column. */
-  .skills-grid {
+  /* Objective gallery grid collapses to one column. */
+  .objectives-grid {
     grid-template-columns: 1fr !important;
   }
 

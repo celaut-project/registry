@@ -1,15 +1,15 @@
 /**
- * DataProvider interface for Celaut Skills.
+ * DataProvider interface for Celaut Registry.
  * Both the real Ergo API and the in-memory mock DB implement this interface,
  * allowing seamless swapping between demo and live modes.
  */
 
 import type {
-  Skill,
+  Objective,
   Coverage,
   Benchmark,
   Result,
-  SkillCreationInput,
+  ObjectiveCreationInput,
   CoverageCreationInput,
   BenchmarkCreationInput,
   ResultCreationInput,
@@ -19,29 +19,29 @@ import type {
 } from './types';
 
 export interface DataProvider {
-  /** Load all skills (lightweight — heavy relations hydrated lazily). */
-  loadSkills(): Promise<Skill[]>;
+  /** Load all objectives (lightweight — heavy relations hydrated lazily). */
+  loadObjectives(): Promise<Objective[]>;
 
   /**
-   * Hydrate a single skill's heavy relations (coverages, benchmarks,
+   * Hydrate a single objective's heavy relations (coverages, benchmarks,
    * per-benchmark results). Idempotent and on-demand.
    */
-  hydrateSkill(skill: Skill): Promise<void>;
+  hydrateObjective(objective: Objective): Promise<void>;
 
-  /** Load coverages for a given skill box ID. */
-  loadCoverages(skillBoxId: string): Promise<Coverage[]>;
+  /** Load coverages for a given objective box ID. */
+  loadCoverages(objectiveBoxId: string): Promise<Coverage[]>;
 
   /** Load coverages that target a given benchmark ID. */
   loadBenchmarkCoverages(benchmarkId: string): Promise<Coverage[]>;
 
-  /** Load benchmarks for a given skill box ID. */
-  loadBenchmarks(skillBoxId: string): Promise<Benchmark[]>;
+  /** Load benchmarks for a given objective box ID. */
+  loadBenchmarks(objectiveBoxId: string): Promise<Benchmark[]>;
 
   /** Load results for a given benchmark ID. */
   loadResults(benchmarkId: string): Promise<Result[]>;
 
-  /** Create a new skill profile. */
-  createSkill(input: SkillCreationInput): Promise<string>;
+  /** Create a new objective profile. */
+  createObjective(input: ObjectiveCreationInput): Promise<string>;
 
   /** Create a new coverage opinion. */
   createCoverage(input: CoverageCreationInput): Promise<string>;
